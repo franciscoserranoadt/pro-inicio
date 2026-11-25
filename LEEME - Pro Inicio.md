@@ -13,7 +13,7 @@ Pantalla de inicio para la pantalla Android del coche (Junsun V9 del Nissan Qash
 | Zona | Qué hay |
 |---|---|
 | **Arriba** | Hora grande, fecha, tiempo (icono, temperatura, ciudad, máxima/mínima). Botón ▦ (todas las apps) y ⚙ (ajustes). |
-| **4 botones grandes** | Pro Maps (azul), Pro Radio (naranja), Pro OBD (verde), Pro Garaje (morado). Si una app no está instalada sale apagada: «Descargar» abre su página de GitHub; «Próximamente» si aún no existe. |
+| **4 botones grandes** | Pro Maps (azul), Pro Radio (naranja), Pro OBD (verde), Pro Garaje (morado). Si una app no está instalada sale apagada con «Descargar», que abre su página de GitHub. |
 | **Lo que suena** | Logo de la emisora, canción y emisora de Pro Radio, botones ⏮ ⏯ ⏭. Tocar el texto abre Pro Radio. Con Pro Radio parada, ▶ pone la última emisora (si no arranca en 3 s, abre Pro Radio). Solo muestra Pro Radio, no otras apps de música. |
 | **Cajón de apps (▦)** | Todas las apps instaladas con su icono y un buscador. |
 | **Ajustes (⚙)** | Elegir como pantalla de inicio, abrir al encender el coche, permiso de ubicación, buscar actualización y versión. |
@@ -27,8 +27,8 @@ El botón «atrás» no sale de la app (es la pantalla de inicio): solo cierra p
 - **Paquetes de la gama Pro** (para saber si están instaladas y abrirlas):
   - Pro Maps → `com.fserrano.promaps`
   - Pro Radio → `es.proradio.app`
-  - Pro OBD → `es.proobd.app` *(cuando se haga, tiene que usar este nombre)*
-  - Pro Garaje → `es.progaraje.app` *(ídem)*
+  - Pro OBD → `es.proobd.app` (repo franciscoserranoadt/pro-obd)
+  - Pro Garaje → `es.progaraje.app` (repo franciscoserranoadt/pro-garaje)
 
 ---
 
@@ -62,6 +62,7 @@ Java, con una sola librería: `androidx.media3:media3-session` (para hablar con 
 
 ## 5. Historial
 - **1.0.1** Primera versión.
+- **1.0.3** Botones «Descargar» también para Pro OBD y Pro Garaje (ya existen). Primera prueba en la Junsun (25-nov): se ve bien a 1280×720.
 - **1.0.2** Quitado el permiso de «acceso a notificaciones»: Google Play Protect bloqueaba la instalación («Aplicación bloqueada para proteger tu dispositivo»). Ahora lee lo que suena directamente de Pro Radio.
 
 ## Decisiones tomadas

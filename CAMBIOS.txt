@@ -1,3 +1,1 @@
-• Ya no pide el permiso de «acceso a notificaciones» (Play Protect bloqueaba la instalación)
-• Lo que suena se lee directamente de Pro Radio, igual que los mandos del volante
-• Logo de la emisora en el reproductor
+• Pro OBD y Pro Garaje ya existen: si no están instaladas, su botón pone «Descargar» y abre su página

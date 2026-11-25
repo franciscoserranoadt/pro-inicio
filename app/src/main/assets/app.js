@@ -23,8 +23,8 @@
   const PRO = {
     maps:   { pkg: 'com.fserrano.promaps', name: 'Pro Maps',   url: 'https://github.com/franciscoserranoadt/pro-maps/releases/tag/ultima' },
     radio:  { pkg: 'es.proradio.app',      name: 'Pro Radio',  url: 'https://github.com/franciscoserranoadt/pro-radio/releases/tag/ultima' },
-    obd:    { pkg: 'es.proobd.app',        name: 'Pro OBD',    url: null },
-    garaje: { pkg: 'es.progaraje.app',     name: 'Pro Garaje', url: null }
+    obd:    { pkg: 'es.proobd.app',        name: 'Pro OBD',    url: 'https://github.com/franciscoserranoadt/pro-obd/releases/tag/ultima' },
+    garaje: { pkg: 'es.progaraje.app',     name: 'Pro Garaje', url: 'https://github.com/franciscoserranoadt/pro-garaje/releases/tag/ultima' }
   };
   let installed = {};
 
