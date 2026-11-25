@@ -1,0 +1,6 @@
+• Primera versión de Pro Inicio
+• Botones grandes: Pro Maps, Pro Radio, Pro OBD y Pro Garaje
+• Hora, fecha y tiempo según dónde estés
+• Lo que suena en Pro Radio, con botones ⏮ ⏯ ⏭
+• Cajón con todas las apps instaladas
+• Se actualiza sola

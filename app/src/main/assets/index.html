@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Pro Inicio</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- Barra de arriba: hora, fecha, tiempo -->
+  <header id="top">
+    <div class="clock">
+      <div id="hora">--:--</div>
+      <div id="fecha">&nbsp;</div>
+    </div>
+    <div id="tiempo" class="weather" title="Tiempo">
+      <div id="wIcon" class="wicon">·</div>
+      <div class="wtxt">
+        <div id="wTemp" class="wtemp">--°</div>
+        <div id="wDesc" class="wdesc">Buscando el tiempo…</div>
+      </div>
+    </div>
+    <div class="topbtns">
+      <button id="btnApps" class="round" aria-label="Todas las apps">
+        <svg viewBox="0 0 24 24"><path d="M4 4h4v4H4zM10 4h4v4h-4zM16 4h4v4h-4zM4 10h4v4H4zM10 10h4v4h-4zM16 10h4v4h-4zM4 16h4v4H4zM10 16h4v4h-4zM16 16h4v4h-4z"/></svg>
+      </button>
+      <button id="btnAjustes" class="round" aria-label="Ajustes">
+        <svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.6 7.6 0 0 0-1.7-1L15 3.2h-4l-.3 2.7a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.3 2.7h4l.3-2.7c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- Los 4 botones grandes -->
+    <section id="tiles">
+      <button class="tile t-maps" data-app="maps">
+        <span class="ticon"><svg viewBox="0 0 48 48"><path d="M24 4 40 42 24 34 8 42Z" fill="#fff"/><path d="M24 12 34 36 24 31Z" fill="rgba(0,0,0,.18)"/></svg></span>
+        <span class="tname">Pro Maps</span><span class="tsub">Navegador</span><span class="badge"></span>
+      </button>
+      <button class="tile t-radio" data-app="radio">
+        <span class="ticon"><svg viewBox="0 0 48 48"><rect x="6" y="16" width="36" height="24" rx="5" fill="#fff"/><circle cx="17" cy="28" r="6" fill="rgba(0,0,0,.25)"/><rect x="27" y="23" width="10" height="3" rx="1.5" fill="rgba(0,0,0,.25)"/><rect x="27" y="29" width="10" height="3" rx="1.5" fill="rgba(0,0,0,.25)"/><path d="M12 15 34 7" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg></span>
+        <span class="tname">Pro Radio</span><span class="tsub">Emisoras del mundo</span><span class="badge"></span>
+      </button>
+      <button class="tile t-obd" data-app="obd">
+        <span class="ticon"><svg viewBox="0 0 48 48"><path d="M6 32a18 18 0 0 1 36 0" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/><path d="M24 32 33 19" stroke="#fff" stroke-width="4" stroke-linecap="round"/><circle cx="24" cy="32" r="4" fill="#fff"/><path d="M10 24l3 1.5M38 24l-3 1.5M24 14v3M15 17l2 2.5M33 17l-2 2.5" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg></span>
+        <span class="tname">Pro OBD</span><span class="tsub">Diagnóstico del coche</span><span class="badge"></span>
+      </button>
+      <button class="tile t-garaje" data-app="garaje">
+        <span class="ticon"><svg viewBox="0 0 48 48"><path d="M5 20 24 8l19 12v20H5Z" fill="#fff"/><rect x="12" y="24" width="24" height="16" rx="2" fill="rgba(0,0,0,.25)"/><path d="M12 29h24M12 34h24" stroke="#fff" stroke-width="2"/></svg></span>
+        <span class="tname">Pro Garaje</span><span class="tsub">Mantenimiento</span><span class="badge"></span>
+      </button>
+    </section>
+
+    <!-- Lo que suena -->
+    <section id="player">
+      <div id="pTap" class="pinfo">
+        <div id="pArt" class="art"><span>PR</span></div>
+        <div class="ptxt">
+          <div id="pApp" class="papp">PRO RADIO</div>
+          <div id="pTitle" class="ptitle">Sin sonar</div>
+          <div id="pSub" class="psub">Toca ▶ para la última emisora</div>
+        </div>
+      </div>
+      <div id="pEq" class="eq"><i></i><i></i><i></i><i></i></div>
+      <div class="pbtns">
+        <button id="bPrev" class="pb" aria-label="Anterior"><svg viewBox="0 0 24 24"><path d="M6 5h2.5v14H6zM20 5v14L9.5 12z"/></svg></button>
+        <button id="bPlay" class="pb big" aria-label="Reproducir o pausar"><svg id="icPlay" viewBox="0 0 24 24"><path d="M7 4.5v15L20 12z"/></svg><svg id="icPause" viewBox="0 0 24 24" class="hide"><path d="M6 4.5h4.2v15H6zM13.8 4.5H18v15h-4.2z"/></svg></button>
+        <button id="bNext" class="pb" aria-label="Siguiente"><svg viewBox="0 0 24 24"><path d="M15.5 5H18v14h-2.5zM4 5v14l10.5-7z"/></svg></button>
+      </div>
+      <button id="pPerm" class="permbtn hide">Permitir ver lo que suena</button>
+    </section>
+  </main>
+</div>
+
+<!-- Cajón de todas las apps -->
+<div id="drawer" class="sheet hide">
+  <div class="sheethead">
+    <input id="buscar" type="search" placeholder="Buscar app…" autocomplete="off">
+    <button class="close" data-close="drawer" aria-label="Cerrar">✕</button>
+  </div>
+  <div id="appGrid" class="appgrid"><div class="empty">Cargando apps…</div></div>
+</div>
+
+<!-- Ajustes -->
+<div id="ajustes" class="sheet hide">
+  <div class="sheethead">
+    <h2>Ajustes</h2>
+    <button class="close" data-close="ajustes" aria-label="Cerrar">✕</button>
+  </div>
+  <div class="opts">
+    <div class="opt">
+      <div><b>Pantalla de inicio</b><small id="homeState">Que el botón «casa» abra Pro Inicio</small></div>
+      <button id="oHome" class="obtn">Elegir</button>
+    </div>
+    <div class="opt">
+      <div><b>Ver lo que suena</b><small id="permState">Permiso para mostrar Pro Radio</small></div>
+      <button id="oPerm" class="obtn">Permitir</button>
+    </div>
+    <div class="opt">
+      <div><b>Abrir al encender el coche</b><small>Pro Inicio aparece sola al arrancar</small></div>
+      <label class="sw"><input id="oBoot" type="checkbox"><span></span></label>
+    </div>
+    <div class="opt">
+      <div><b>Ubicación para el tiempo</b><small id="locState">Usa el GPS para saber el tiempo</small></div>
+      <button id="oLoc" class="obtn">Permitir</button>
+    </div>
+    <div class="opt">
+      <div><b>Actualizaciones</b><small id="verState">Versión</small></div>
+      <button id="oUpd" class="obtn">🔄 Buscar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Aviso de versión nueva -->
+<div id="upd" class="modal hide">
+  <div class="mbox">
+    <h2>Hay una versión nueva</h2>
+    <div id="updName" class="muted"></div>
+    <pre id="updNotes"></pre>
+    <div class="mbtns">
+      <button id="updLater" class="obtn ghost">Más tarde</button>
+      <button id="updGo" class="obtn">Actualizar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hide"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

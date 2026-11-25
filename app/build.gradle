@@ -1,0 +1,52 @@
+plugins {
+    id 'com.android.application'
+}
+
+// La versión se numera sola con cada compilación de GitHub Actions (igual que Pro Radio)
+def runNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+
+android {
+    namespace 'es.proinicio.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'es.proinicio.app'
+        minSdk 24
+        targetSdk 34
+        versionCode runNumber
+        versionName "1.0.${runNumber}"
+    }
+
+    signingConfigs {
+        fija {
+            // FIRMA FIJA: no cambiar nunca, o las actualizaciones dejarán de instalarse encima
+            storeFile file('pro-inicio.jks')
+            storePassword 'proinicio2026'
+            keyAlias 'proinicio'
+            keyPassword 'proinicio2026'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.fija
+        }
+        debug {
+            signingConfig signingConfigs.fija
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+}
