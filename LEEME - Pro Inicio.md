@@ -14,15 +14,15 @@ Pantalla de inicio para la pantalla Android del coche (Junsun V9 del Nissan Qash
 |---|---|
 | **Arriba** | Hora grande, fecha, tiempo (icono, temperatura, ciudad, máxima/mínima). Botón ▦ (todas las apps) y ⚙ (ajustes). |
 | **4 botones grandes** | Pro Maps (azul), Pro Radio (naranja), Pro OBD (verde), Pro Garaje (morado). Si una app no está instalada sale apagada: «Descargar» abre su página de GitHub; «Próximamente» si aún no existe. |
-| **Lo que suena** | Carátula/logo, emisora y canción de Pro Radio, botones ⏮ ⏯ ⏭. Tocar el texto abre Pro Radio. Con Pro Radio cerrada, ▶ pone la última emisora. Si suena otra app de música y Pro Radio no, muestra esa. |
+| **Lo que suena** | Logo de la emisora, canción y emisora de Pro Radio, botones ⏮ ⏯ ⏭. Tocar el texto abre Pro Radio. Con Pro Radio parada, ▶ pone la última emisora (si no arranca en 3 s, abre Pro Radio). Solo muestra Pro Radio, no otras apps de música. |
 | **Cajón de apps (▦)** | Todas las apps instaladas con su icono y un buscador. |
-| **Ajustes (⚙)** | Elegir como pantalla de inicio, permiso «Ver lo que suena», abrir al encender el coche, permiso de ubicación, buscar actualización y versión. |
+| **Ajustes (⚙)** | Elegir como pantalla de inicio, abrir al encender el coche, permiso de ubicación, buscar actualización y versión. |
 
 En horizontal (Junsun): botones a la izquierda y reproductor a la derecha. En vertical (móvil): reproductor arriba y botones debajo.
 El botón «atrás» no sale de la app (es la pantalla de inicio): solo cierra paneles.
 
 ### Cómo funciona por dentro
-- **Lo que suena:** igual que el botón de música de Pro Maps. Android solo deja ver qué suena en otra app si se activa el permiso de «acceso a notificaciones» (el servicio `MediaListener` está vacío: no lee ninguna notificación). **No hace falta tocar Pro Radio.**
+- **Lo que suena:** Pro Inicio se conecta directamente al reproductor de Pro Radio (`es.proradio.app.PlaybackService`, MediaSession de Media3), igual que los mandos del volante. No necesita ningún permiso especial ni hay que tocar Pro Radio.
 - **Tiempo:** Open-Meteo (gratis) con la ubicación; nombre del sitio con BigDataCloud. Se actualiza cada 15 minutos.
 - **Paquetes de la gama Pro** (para saber si están instaladas y abrirlas):
   - Pro Maps → `com.fserrano.promaps`
@@ -53,16 +53,20 @@ El botón «atrás» no sale de la app (es la pantalla de inicio): solo cierra p
 | `app/src/main/assets/style.css` | Diseño (horizontal Junsun y vertical móvil) |
 | `app/src/main/assets/app.js` | Hora, tiempo, botones, reproductor, cajón de apps, ajustes, aviso de actualización |
 | `MainActivity.java` | WebView a pantalla completa + puente `Android.*` (abrir apps, lista de apps, lo que suena, ubicación, peticiones web, actualizar) |
-| `MediaListener.java` | Servicio vacío para el permiso «ver lo que suena» |
 | `Updater.java` | Comprueba e instala versiones nuevas |
 | `BootReceiver.java` | Abre Pro Inicio al encender el coche (si está activado) |
 | `AndroidManifest.xml` | Permisos y registro como «pantalla de inicio» |
 | `app/build.gradle` | minSdk 24, targetSdk 34, firma fija |
 
-Java puro, sin librerías externas.
+Java, con una sola librería: `androidx.media3:media3-session` (para hablar con Pro Radio).
 
 ## 5. Historial
 - **1.0.1** Primera versión.
+- **1.0.2** Quitado el permiso de «acceso a notificaciones»: Google Play Protect bloqueaba la instalación («Aplicación bloqueada para proteger tu dispositivo»). Ahora lee lo que suena directamente de Pro Radio.
+
+## Decisiones tomadas
+- **No usar nunca el permiso de «acceso a notificaciones»** (NotificationListenerService) ni otros permisos «sensibles» (accesibilidad, SMS): Play Protect bloquea la instalación de apps que no vienen de Google Play y los piden.
+- El reproductor solo muestra Pro Radio (no Spotify ni otras apps), a cambio de no necesitar ese permiso.
 
 ## 6. Ideas pendientes (no pedidas aún)
 Fondo de pantalla a elegir, modo noche, velocidad GPS en grande, accesos directos extra (teléfono, Bluetooth), widget de Pro OBD cuando exista.

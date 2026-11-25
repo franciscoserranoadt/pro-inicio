@@ -129,7 +129,7 @@
   setInterval(() => loadWeather(false), 60 * 1000);
 
   // ---------- Lo que suena (Pro Radio) ----------
-  let media = { perm: false, has: false };
+  let media = { perm: true, has: false };
   function initials(s) {
     const w = String(s || 'PR').replace(/[^\p{L}\p{N} ]/gu, ' ').trim().split(/\s+/);
     return ((w[0] || 'P')[0] + ((w[1] || w[0] || 'R')[w[1] ? 0 : 1] || '')).toUpperCase();
@@ -172,7 +172,7 @@
     artNow = key;
     const box = $('pArt');
     box.innerHTML = '';
-    if (src) { const i = new Image(); i.src = src; box.appendChild(i); }
+    if (src) { const i = new Image(); i.onerror = () => { artNow = null; setArt('', txt); }; i.src = src; box.appendChild(i); }
     else { const s = document.createElement('span'); s.textContent = txt; box.appendChild(s); }
   }
   $('bPlay').addEventListener('click', () => {
@@ -230,9 +230,6 @@
     $('homeState').textContent = home ? '✔ Pro Inicio es la pantalla de inicio' : 'Que el botón «casa» abra Pro Inicio';
     $('homeState').classList.toggle('ok', home);
     $('oHome').textContent = home ? 'Cambiar' : 'Elegir';
-    $('permState').textContent = media.perm ? '✔ Permitido' : 'Permiso para mostrar Pro Radio';
-    $('permState').classList.toggle('ok', !!media.perm);
-    $('oPerm').textContent = media.perm ? 'Revisar' : 'Permitir';
     $('locState').textContent = loc ? '✔ Ubicación recibida' : 'Usa el GPS para saber el tiempo';
     $('locState').classList.toggle('ok', !!loc);
     $('oLoc').classList.toggle('hide', !!loc);
@@ -240,7 +237,6 @@
     $('verState').textContent = 'Versión ' + A.version();
   }
   $('oHome').addEventListener('click', () => { toast('Elige «Pro Inicio» como aplicación de inicio'); A.homeSettings(); });
-  $('oPerm').addEventListener('click', () => { toast('Busca «Pro Inicio» en la lista y actívalo'); A.mediaPermission(); });
   $('oLoc').addEventListener('click', () => A.locationPermission());
   $('oBoot').addEventListener('change', (e) => A.setPref('boot', e.target.checked));
   $('oUpd').addEventListener('click', () => { toast('Buscando actualización…'); A.checkUpdate(true); });
@@ -266,7 +262,7 @@
   // ---------- Lo que Android llama ----------
   window.PI = {
     toast,
-    onMedia(m) { media = m || { perm: false, has: false }; renderMedia(); },
+    onMedia(m) { media = m || { has: false }; if (media.perm === undefined) media.perm = true; renderMedia(); },
     onLocation(lat, lon) {
       const moved = !loc || Math.abs(loc.lat - lat) > 0.02 || Math.abs(loc.lon - lon) > 0.02;
       loc = { lat, lon };

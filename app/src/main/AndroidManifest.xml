@@ -16,6 +16,9 @@
         </intent>
         <package android:name="com.fserrano.promaps" />
         <package android:name="es.proradio.app" />
+        <intent>
+            <action android:name="androidx.media3.session.MediaSessionService" />
+        </intent>
         <package android:name="es.proobd.app" />
         <package android:name="es.progaraje.app" />
     </queries>
@@ -49,17 +52,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-
-        <!-- Servicio vacío: solo para que Android deje ver lo que suena en Pro Radio (no lee notificaciones) -->
-        <service
-            android:name=".MediaListener"
-            android:exported="true"
-            android:label="Pro Inicio"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
-            </intent-filter>
-        </service>
 
         <receiver
             android:name=".BootReceiver"

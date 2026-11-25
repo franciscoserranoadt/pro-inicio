@@ -18,10 +18,6 @@ import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.media.MediaMetadata;
-import android.media.session.MediaController;
-import android.media.session.MediaSessionManager;
-import android.media.session.PlaybackState;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -37,6 +33,14 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
+
+import androidx.media3.common.MediaItem;
+import androidx.media3.common.MediaMetadata;
+import androidx.media3.common.Player;
+import androidx.media3.session.MediaController;
+import androidx.media3.session.SessionToken;
+
+import com.google.common.util.concurrent.ListenableFuture;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -66,19 +70,13 @@ public class MainActivity extends Activity {
     private SharedPreferences prefs;
     private long lastUpdateCheck = 0;
 
-    // ---- Música (lo que suena en Pro Radio) ----
-    private MediaSessionManager msm;
-    private MediaController mediaCtl;
-    private boolean mediaStarted = false;
-    private String lastArtKey = "";
-    private String lastArt = "";
-    private final MediaController.Callback mediaCb = new MediaController.Callback() {
-        @Override public void onMetadataChanged(MediaMetadata m) { pushMedia(); }
-        @Override public void onPlaybackStateChanged(PlaybackState st) { pickController(); pushMedia(); }
-        @Override public void onSessionDestroyed() { pickController(); pushMedia(); }
+    // ---- Música: se conecta directamente al reproductor de Pro Radio (sin permisos especiales) ----
+    private MediaController radio;
+    private ListenableFuture<MediaController> radioFuture;
+    private boolean visible = false;
+    private final Player.Listener radioListener = new Player.Listener() {
+        @Override public void onEvents(Player player, Player.Events events) { pushMedia(); }
     };
-    private final MediaSessionManager.OnActiveSessionsChangedListener sessionsCb =
-            list -> { pickController(); pushMedia(); };
 
     // ---- Ubicación (para el tiempo) ----
     private LocationManager lm;
@@ -100,7 +98,6 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         prefs = getSharedPreferences("proinicio", MODE_PRIVATE);
-        msm = (MediaSessionManager) getSystemService(Context.MEDIA_SESSION_SERVICE);
         lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
         web = new WebView(this);
@@ -146,7 +143,6 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         hideSystemBars();
-        startMedia();
         if (!locationStarted) startLocation();
         // Comprueba actualizaciones al abrir y, como mucho, cada 6 horas
         long now = System.currentTimeMillis();
@@ -158,10 +154,22 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        visible = true;
+        connectRadio();
+    }
+
+    @Override
+    protected void onStop() {
+        visible = false;
+        releaseRadio();
+        super.onStop();
+    }
+
+    @Override
     protected void onDestroy() {
         try { unregisterReceiver(pkgReceiver); } catch (Exception ignored) { }
-        try { if (msm != null) msm.removeOnActiveSessionsChangedListener(sessionsCb); } catch (Exception ignored) { }
-        try { if (mediaCtl != null) mediaCtl.unregisterCallback(mediaCb); } catch (Exception ignored) { }
         try { lm.removeUpdates(locListener); } catch (Exception ignored) { }
         super.onDestroy();
     }
@@ -254,145 +262,117 @@ public class MainActivity extends Activity {
         return b;
     }
 
-    // ================= música =================
+    // ================= música (Pro Radio) =================
 
-    private ComponentName listenerName() { return new ComponentName(this, MediaListener.class); }
-
-    private boolean hasMediaPerm() {
+    /** Se conecta al reproductor de Pro Radio, como hacen los mandos del volante. */
+    private void connectRadio() {
+        if (radio != null || radioFuture != null || !installed(PKG_RADIO)) { pushMedia(); return; }
         try {
-            String flat = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
-            return flat != null && flat.contains(getPackageName());
+            SessionToken token = new SessionToken(this, new ComponentName(PKG_RADIO, PKG_RADIO + ".PlaybackService"));
+            final ListenableFuture<MediaController> f = new MediaController.Builder(this, token)
+                    .setListener(new MediaController.Listener() {
+                        @Override public void onDisconnected(MediaController controller) {
+                            radio = null;
+                            radioFuture = null;
+                            pushMedia();
+                            if (visible) handler.postDelayed(MainActivity.this::connectRadio, 5000);
+                        }
+                    })
+                    .buildAsync();
+            radioFuture = f;
+            f.addListener(() -> {
+                try {
+                    MediaController c = f.get();
+                    if (!visible || radioFuture != f) { c.release(); return; }
+                    radio = c;
+                    c.addListener(radioListener);
+                } catch (Exception e) {
+                    radioFuture = null;
+                }
+                pushMedia();
+            }, handler::post);
         } catch (Exception e) {
-            return false;
+            radioFuture = null;
+            pushMedia();
         }
     }
 
-    private void startMedia() {
-        if (mediaStarted || msm == null || !hasMediaPerm()) { pushMedia(); return; }
-        try {
-            msm.addOnActiveSessionsChangedListener(sessionsCb, listenerName(), handler);
-            mediaStarted = true;
-        } catch (Exception ignored) { }
-        pickController();
-        pushMedia();
-    }
-
-    /** Elige qué reproductor mostrar: primero Pro Radio; si no, el que esté sonando. */
-    private void pickController() {
-        if (msm == null || !hasMediaPerm()) return;
-        try {
-            List<MediaController> l = msm.getActiveSessions(listenerName());
-            MediaController best = null, playing = null, radio = null;
-            for (MediaController c : l) {
-                if (c.getPackageName().equals(getPackageName())) continue;
-                if (PKG_RADIO.equals(c.getPackageName()) && radio == null) radio = c;
-                PlaybackState st = c.getPlaybackState();
-                if (playing == null && st != null && st.getState() == PlaybackState.STATE_PLAYING) playing = c;
-                if (best == null) best = c;
-            }
-            if (radio != null) best = radio;
-            else if (playing != null) best = playing;
-            boolean same = mediaCtl != null && best != null && mediaCtl.getSessionToken().equals(best.getSessionToken());
-            if (!same) {
-                if (mediaCtl != null) try { mediaCtl.unregisterCallback(mediaCb); } catch (Exception ignored) { }
-                if (best != null) best.registerCallback(mediaCb, handler);
-                mediaCtl = best;
-            }
-        } catch (Exception ignored) { }
+    private void releaseRadio() {
+        try { if (radio != null) radio.removeListener(radioListener); } catch (Exception ignored) { }
+        try { if (radioFuture != null) MediaController.releaseFuture(radioFuture); } catch (Exception ignored) { }
+        radio = null;
+        radioFuture = null;
     }
 
     private void pushMedia() {
         if (!pageReady) return;
         try {
             JSONObject o = new JSONObject();
-            o.put("perm", hasMediaPerm());
+            o.put("perm", true);
             o.put("radio", installed(PKG_RADIO));
-            MediaController c = mediaCtl;
-            if (c == null) {
+            MediaController c = radio;
+            if (c == null || !c.isConnected() || c.getMediaItemCount() == 0) {
                 o.put("has", false);
             } else {
                 o.put("has", true);
-                o.put("pkg", c.getPackageName());
-                String app = c.getPackageName();
-                try {
-                    app = getPackageManager().getApplicationLabel(
-                            getPackageManager().getApplicationInfo(c.getPackageName(), 0)).toString();
-                } catch (Exception ignored) { }
-                o.put("app", app);
-                PlaybackState st = c.getPlaybackState();
-                int state = st == null ? 0 : st.getState();
-                o.put("playing", state == PlaybackState.STATE_PLAYING || state == PlaybackState.STATE_BUFFERING);
-                o.put("buffering", state == PlaybackState.STATE_BUFFERING || state == PlaybackState.STATE_CONNECTING);
-                MediaMetadata m = c.getMetadata();
-                String title = "", artist = "", album = "", art = "";
-                if (m != null) {
-                    title = nz(m.getString(MediaMetadata.METADATA_KEY_TITLE));
-                    if (title.isEmpty()) title = nz(m.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE));
-                    artist = nz(m.getString(MediaMetadata.METADATA_KEY_ARTIST));
-                    if (artist.isEmpty()) artist = nz(m.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE));
-                    album = nz(m.getString(MediaMetadata.METADATA_KEY_ALBUM));
-                    String key = c.getPackageName() + "|" + title + "|" + album;
-                    if (key.equals(lastArtKey)) {
-                        art = lastArt;
-                    } else {
-                        Bitmap b = m.getBitmap(MediaMetadata.METADATA_KEY_ART);
-                        if (b == null) b = m.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
-                        if (b == null) b = m.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
-                        art = b != null ? bitmapB64(b, 240, false) : "";
-                        if (b != null || m.getString(MediaMetadata.METADATA_KEY_TITLE) != null) {
-                            lastArtKey = key;
-                            lastArt = art;
-                        }
-                    }
-                }
-                o.put("title", title);
-                o.put("artist", artist);
-                o.put("album", album);
+                o.put("pkg", PKG_RADIO);
+                o.put("app", "Pro Radio");
+                o.put("playing", c.getPlayWhenReady() && c.getPlaybackState() != Player.STATE_IDLE
+                        && c.getPlaybackState() != Player.STATE_ENDED);
+                o.put("buffering", c.getPlayWhenReady() && c.getPlaybackState() == Player.STATE_BUFFERING);
+                MediaItem item = c.getCurrentMediaItem();
+                String station = item != null && item.mediaMetadata.title != null ? item.mediaMetadata.title.toString().trim() : "";
+                MediaMetadata live = c.getMediaMetadata();
+                String song = live.title != null ? live.title.toString().trim() : "";
+                if (song.equals(station)) song = "";
+                o.put("title", song.isEmpty() ? (station.isEmpty() ? "Pro Radio" : station) : song);
+                o.put("artist", song.isEmpty() ? "" : station);
+                o.put("album", station);
+                String art = "";
+                Uri u = item != null && item.mediaMetadata.artworkUri != null ? item.mediaMetadata.artworkUri : live.artworkUri;
+                if (u != null) art = u.toString();
                 o.put("art", art);
             }
             js("PI.onMedia(" + o + ")");
         } catch (Exception ignored) { }
     }
 
-    private static String nz(String s) { return s == null ? "" : s.trim(); }
-
     private void mediaCmd(String cmd) {
-        MediaController c = mediaCtl;
-        if (c == null) {
+        MediaController c = radio;
+        if (c == null || !c.isConnected()) {
             if ("play".equals(cmd) || "toggle".equals(cmd)) startRadio();
+            else connectRadio();
             return;
         }
         try {
-            MediaController.TransportControls t = c.getTransportControls();
-            PlaybackState st = c.getPlaybackState();
-            boolean playing = st != null && (st.getState() == PlaybackState.STATE_PLAYING
-                    || st.getState() == PlaybackState.STATE_BUFFERING);
             switch (cmd) {
-                case "toggle": if (playing) t.pause(); else t.play(); break;
-                case "play": t.play(); break;
-                case "pause": t.pause(); break;
-                case "next": t.skipToNext(); break;
-                case "prev": t.skipToPrevious(); break;
+                case "toggle":
+                    if (c.getMediaItemCount() == 0) { startRadio(); break; }
+                    if (c.getPlayWhenReady()) c.pause();
+                    else { if (c.getPlaybackState() == Player.STATE_IDLE) c.prepare(); c.play(); }
+                    break;
+                case "play":
+                    if (c.getMediaItemCount() == 0) { startRadio(); break; }
+                    if (c.getPlaybackState() == Player.STATE_IDLE) c.prepare();
+                    c.play();
+                    break;
+                case "pause": c.pause(); break;
+                case "next": c.seekToNext(); break;
+                case "prev": c.seekToPrevious(); break;
                 default: break;
             }
         } catch (Exception ignored) { }
     }
 
-    /** Pro Radio cerrada: le manda «play» (vuelve a la última emisora). Si no arranca, se abre Pro Radio. */
+    /** Pro Radio sin emisora cargada: le pide «play» (vuelve la última emisora). Si no arranca, se abre Pro Radio. */
     private void startRadio() {
         if (!installed(PKG_RADIO)) { toast("Pro Radio no está instalada"); return; }
-        try {
-            for (int action : new int[]{KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP}) {
-                Intent i = new Intent(Intent.ACTION_MEDIA_BUTTON);
-                i.setComponent(new ComponentName(PKG_RADIO, "androidx.media3.session.MediaButtonReceiver"));
-                i.putExtra(Intent.EXTRA_KEY_EVENT, new KeyEvent(action, KeyEvent.KEYCODE_MEDIA_PLAY));
-                sendBroadcast(i);
-            }
-        } catch (Exception ignored) { }
+        MediaController c = radio;
+        try { if (c != null && c.isConnected()) c.play(); } catch (Exception ignored) { }
+        if (c == null) connectRadio();
         handler.postDelayed(() -> {
-            pickController();
-            MediaController c = mediaCtl;
-            boolean ok = c != null && PKG_RADIO.equals(c.getPackageName());
+            MediaController r = radio;
+            boolean ok = r != null && r.isConnected() && r.getMediaItemCount() > 0 && r.getPlayWhenReady();
             if (!ok) openApp(PKG_RADIO);
             pushMedia();
         }, 3000);
@@ -558,16 +538,10 @@ public class MainActivity extends Activity {
         public void media(String cmd) { handler.post(() -> mediaCmd(cmd)); }
 
         @JavascriptInterface
-        public void refreshMedia() { handler.post(() -> { startMedia(); pickController(); pushMedia(); }); }
+        public void refreshMedia() { handler.post(() -> { if (visible) connectRadio(); pushMedia(); }); }
 
         @JavascriptInterface
-        public void mediaPermission() {
-            try {
-                startActivity(new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));
-            } catch (Exception e) {
-                startActivity(new Intent(Settings.ACTION_SETTINGS));
-            }
-        }
+        public void mediaPermission() { }
 
         @JavascriptInterface
         public void locationPermission() {
