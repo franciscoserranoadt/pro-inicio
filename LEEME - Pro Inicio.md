@@ -32,6 +32,9 @@ Francisco quiere manejar el navegador (buscar destino, gasolineras…) desde la 
 - **Otro navegador (Waze, Google Maps…):** se abre en una **ventana libre** (freeform) con la posición y el tamaño de la tarjeta (`ActivityOptions.setLaunchBounds`). Solo funciona si la pantalla tiene activado «Habilitar ventanas de formato libre» en Opciones de desarrollador (Pro Inicio explica los pasos). **Es una prueba:** puede que la Junsun no lo permita.
 - Opción «Mapa de Pro Inicio»: el mapa propio de antes (MapLibre) que abre el navegador al tocarlo.
 
+### Código Pro: móvil ⇄ coche (27-nov)
+Personalizar → **Móvil y coche** → Código Pro. Un solo código para todas las apps Pro (ver `codigo-pro/LEEME - Código Pro.md` en el proyecto). Pro Inicio sincroniza el **tema, los botones de apps (barra y cuadro) y el navegador elegido** (canal `inicio`, gana el último cambio). La colocación del mapa y las tarjetas queda distinta en cada pantalla (decisión de Francisco). Archivos: `ProSync.java`, `SyncReceiver.java`, `assets/prosync.js` (iguales en las 5 apps).
+
 El botón «atrás» no sale de la app (es la pantalla de inicio): solo cierra paneles.
 
 ### Cómo funciona por dentro
@@ -77,6 +80,7 @@ El botón «atrás» no sale de la app (es la pantalla de inicio): solo cierra p
 Java, con una sola librería: `androidx.media3:media3-session` (para hablar con Pro Radio).
 
 ## 5. Historial
+- **1.0.14** Código Pro: tema, botones de apps y navegador iguales en el móvil y el coche, cifrado.
 - **1.0.1** Primera versión.
 - **1.0.13** Botones de la barra lateral arriba, en la barra de estado (pedido el 27-nov para que el mapa ocupe más). Ajuste «Posición de los botones»: Arriba (de serie) / Izquierda. En vertical van abajo. La fecha se oculta en horizontal con los botones arriba. Mantener pulsada la hora abre Personalizar.
 - **1.0.12** Pro Maps 3.13 confirma «shown» al colocarse; Pro Inicio reintenta 2 veces si no llega en 6 s y luego ofrece «Reintentar». Confirmado el 27-nov: Pro Maps en la tarjeta funciona en el móvil y en la Junsun.
