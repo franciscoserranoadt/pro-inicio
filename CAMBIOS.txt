@@ -1,3 +1,3 @@
-• Los botones de la izquierda pasan a la barra de arriba (junto al GPS y el wifi): el mapa gana todo el lado izquierdo
-• Se puede volver a ponerlos a la izquierda: Personalizar → Botones → Posición → Izquierda
-• En el móvil en vertical siguen abajo
+Nuevo «Código Pro» (Personalizar → Móvil y coche): un solo código para vincular el móvil y el coche en todas las apps Pro.
+Pro Inicio sincroniza el tema de colores, los botones de apps y el navegador elegido. La colocación del mapa y las tarjetas sigue siendo distinta en cada pantalla.
+Los datos viajan cifrados: solo tus aparatos pueden leerlos.

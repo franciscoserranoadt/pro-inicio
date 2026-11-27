@@ -62,5 +62,15 @@
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
+
+        <!-- Código Pro: recibe el código de vinculación de las demás apps Pro -->
+        <receiver
+            android:name=".SyncReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="es.pro.SYNC_CODE" />
+                <action android:name="es.pro.SYNC_ASK" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

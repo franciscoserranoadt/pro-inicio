@@ -131,6 +131,7 @@ public class MainActivity extends Activity {
             }
         });
         web.addJavascriptInterface(new Bridge(), "Android");
+        web.addJavascriptInterface(new ProSync.Js(this, web), "ProSync");
         setContentView(web);
         web.loadUrl("file:///android_asset/index.html");
         hideSystemBars();

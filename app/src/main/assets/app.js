@@ -152,7 +152,17 @@
     Object.keys(d).forEach((k) => { if (cfg[k] === undefined) cfg[k] = d[k]; });
     cfg.st = Object.assign(d.st, cfg.st);
   }
-  function save() { store.set('cfg', cfg); }
+  // ---------- Código Pro: móvil ⇄ coche (prosync.js) ----------
+  // Se sincronizan el tema, los botones de apps (barra y cuadro) y el navegador elegido.
+  // La colocación (mapa, tarjetas, lado…) queda distinta en cada pantalla.
+  const SYNC_KEYS = ['theme', 'grid', 'railItems', 'nav'];
+  const syncPart = () => { const o = {}; SYNC_KEYS.forEach((k) => { o[k] = cfg[k]; }); return o; };
+  let lastSync = JSON.stringify(syncPart()), fromRemote = false;
+  function save() {
+    store.set('cfg', cfg);
+    const now = JSON.stringify(syncPart());
+    if (now !== lastSync) { lastSync = now; if (window.PS && !fromRemote) PS.changed('inicio'); }
+  }
   if (cfg.nav && cfg.nav.t === 'app' && cfg.nav.pkg === 'com.fserrano.promaps') cfg.nav = { t: 'pro', id: 'maps' };
   save();
 
@@ -314,6 +324,18 @@
   }
 
   function drawAll() { applyTheme(); drawRail(); drawGrid(); drawLayout(); applyMapStyle(); }
+
+  if (window.PS) PS.register('inicio', {
+    get: syncPart,
+    apply(d) {
+      fromRemote = true;
+      SYNC_KEYS.forEach((k) => { if (d && d[k] !== undefined) cfg[k] = d[k]; });
+      save(); fromRemote = false;
+      drawAll();
+      if (!$('ajustes').classList.contains('hide')) renderOpts();
+      toast('📲 Tema y apps actualizados desde el otro aparato');
+    }
+  });
 
   // Ajustes siempre a mano: mantener pulsada la hora
   longPress(document.querySelector('.sleft'), openSettings);
@@ -902,6 +924,8 @@
     row('Tiempo', '', sw(cfg.st.wx, (v) => { cfg.st.wx = v; save(); drawLayout(); }));
 
     // --- Sistema
+    h3('Móvil y coche');
+    if (window.PS) o.appendChild(PS.box({ toast, what: 'el tema de colores, los botones de apps (barra y cuadro) y el navegador elegido. La colocación del mapa y las tarjetas queda a tu gusto en cada pantalla.' }));
     h3('Sistema');
     const home = A.isHome();
     const hr = row('Pantalla de inicio', home ? '✔ Pro Inicio es la pantalla de inicio' : 'Que el botón «casa» abra Pro Inicio',
@@ -983,6 +1007,7 @@
       drawGrid(); A.refreshMedia(); loadWeather(false); updNet(); if (map) map.resize();
       if (cardState === 'noperm' || cardState === 'old') { cardState = ''; drawCardMsg(); }
       syncCard(true);
+      if (window.PS) PS.resume();
     },
     back() {
       if (!$('upd').classList.contains('hide')) $('upd').classList.add('hide');
