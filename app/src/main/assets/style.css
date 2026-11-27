@@ -236,3 +236,10 @@ svg { display: block; fill: currentColor; }
 .mbox pre { white-space: pre-wrap; font-family: inherit; font-size: 16px; line-height: 1.5; max-height: 40vh; overflow: auto; margin: 14px 0 0; color: var(--sub); }
 .mbtns { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 30; background: #f2f5fb; color: #111; padding: 14px 22px; border-radius: 14px; font-size: 17px; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,.4); max-width: 90vw; text-align: center; }
+/* La lista para elegir siempre va por encima de Personalizar */
+#picker { z-index: 12; }
+#picker .sheethead h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+@media (orientation: portrait) {
+  #picker .sheethead { flex-wrap: wrap; }
+  #picker .sheethead h2 { flex: 1 1 100%; white-space: normal; font-size: 22px; }
+}

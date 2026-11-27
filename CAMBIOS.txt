@@ -1,4 +1,2 @@
-• La tarjeta del mapa muestra el navegador de verdad: buscar destino, gasolineras, radares… todo desde la propia tarjeta
-• Con Pro Maps: se ve encajada en la tarjeta (necesita Pro Maps 3.11 y el permiso «Mostrar sobre otras apps»)
-• Con otro navegador (Waze, Google Maps…): se abre en una ventana encima de la tarjeta, si la pantalla permite «ventanas libres» (prueba)
-• Si prefieres el mapa de antes: Personalizar → Mapa → «Mapa de Pro Inicio»
+• Arreglado: en Personalizar, «Cambiar» (navegador y botones) no hacía nada; la lista de apps quedaba escondida detrás
+• La lista para elegir app se ve mejor en el móvil en vertical
