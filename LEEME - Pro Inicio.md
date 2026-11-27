@@ -10,20 +10,27 @@ Pantalla de inicio para la pantalla Android del coche (Junsun V9 del Nissan Qash
 
 ## 1. Qué hace la app
 
+Diseño tipo «pantalla de coche» (pedido el 27-nov a partir de una imagen de referencia estilo CarPlay), con los botones de las apps Pro.
+
 | Zona | Qué hay |
 |---|---|
-| **Arriba** | Hora grande, fecha, tiempo (icono, temperatura, ciudad, máxima/mínima). Botón ▦ (todas las apps) y ⚙ (ajustes). |
-| **4 botones grandes** | Pro Maps (azul), Pro Radio (naranja), Pro OBD (verde), Pro Garaje (morado). Si una app no está instalada sale apagada con «Descargar», que abre su página de GitHub. |
-| **Lo que suena** | Logo de la emisora, canción y emisora de Pro Radio, botones ⏮ ⏯ ⏭. Tocar el texto abre Pro Radio. Con Pro Radio parada, ▶ pone la última emisora (si no arranca en 3 s, abre Pro Radio). Solo muestra Pro Radio, no otras apps de música. |
-| **Cajón de apps (▦)** | Todas las apps instaladas con su icono y un buscador. |
-| **Ajustes (⚙)** | Elegir como pantalla de inicio, abrir al encender el coche, permiso de ubicación, buscar actualización y versión. |
+| **Barra de arriba** | Hora, fecha, icono de GPS (encendido si hay señal), conexión (wifi / 4G / sin red) y temperatura con icono del tiempo. |
+| **Barra lateral** | Inicio · Navegar (Pro Maps) · Música (Pro Radio) · Teléfono (marcador) · Todas las apps · Ajustes · Coche (Pro OBD). En vertical va abajo. |
+| **Mapa en directo** | Mapa oscuro de OpenFreeMap con MapLibre (como Pro Maps), edificios 3D, flecha azul con tu posición que sigue la dirección de marcha. Arriba, tarjeta verde con la calle por la que vas (sacada de los datos del propio mapa). Abajo, velocidad (GPS) y ciudad. Botones +, − y centrar. Tocar las tarjetas abre Pro Maps. |
+| **Música** | Logo, canción y emisora de Pro Radio, barra «● EN DIRECTO», botones ⏮ ⏯ ⏭. Tocarla abre Pro Radio. |
+| **Cuadro de apps** | Pro Maps, Pro Radio, Pro OBD, Pro Garaje (si no está instalada sale apagada con ↓ y abre su descarga), las apps favoritas que se añadan, «Más apps» (cajón) y «Añadir». Mantener pulsada una favorita la quita. Si hay muchas, el cuadro se desliza. |
+| **Ajustes** | Pantalla de inicio, abrir al encender el coche, edificios 3D, permiso de ubicación, actualizaciones. |
 
-En horizontal (Junsun): botones a la izquierda y reproductor a la derecha. En vertical (móvil): reproductor arriba y botones debajo.
+**No se puede mostrar la ruta de Pro Maps** (flecha de giro, minutos, km, hora de llegada) dentro de Pro Inicio: son apps separadas y Pro Maps no comparte esos datos. Se haría cambiando también Pro Maps para que los envíe; pendiente de que Francisco lo decida.
+
 El botón «atrás» no sale de la app (es la pantalla de inicio): solo cierra paneles.
 
 ### Cómo funciona por dentro
 - **Lo que suena:** Pro Inicio se conecta directamente al reproductor de Pro Radio (`es.proradio.app.PlaybackService`, MediaSession de Media3), igual que los mandos del volante. No necesita ningún permiso especial ni hay que tocar Pro Radio.
 - **Tiempo:** Open-Meteo (gratis) con la ubicación; nombre del sitio con BigDataCloud. Se actualiza cada 15 minutos.
+- **GPS:** cada segundo mientras Pro Inicio está delante (para el mapa y la velocidad); se para al abrir otra app.
+- **Mapa:** necesita internet (MapLibre desde unpkg/jsdelivr y teselas de OpenFreeMap). Sin internet sale «Sin mapa» y lo vuelve a intentar al volver la conexión.
+- **Favoritas:** se guardan en la propia app (localStorage), con su icono.
 - **Paquetes de la gama Pro** (para saber si están instaladas y abrirlas):
   - Pro Maps → `com.fserrano.promaps`
   - Pro Radio → `es.proradio.app`
@@ -62,6 +69,7 @@ Java, con una sola librería: `androidx.media3:media3-session` (para hablar con 
 
 ## 5. Historial
 - **1.0.1** Primera versión.
+- **1.0.4** Diseño nuevo tipo pantalla de coche (mapa en directo, barra lateral, música y cuadro de apps con favoritas).
 - **1.0.3** Botones «Descargar» también para Pro OBD y Pro Garaje (ya existen). Primera prueba en la Junsun (25-nov): se ve bien a 1280×720.
 - **1.0.2** Quitado el permiso de «acceso a notificaciones»: Google Play Protect bloqueaba la instalación («Aplicación bloqueada para proteger tu dispositivo»). Ahora lee lo que suena directamente de Pro Radio.
 

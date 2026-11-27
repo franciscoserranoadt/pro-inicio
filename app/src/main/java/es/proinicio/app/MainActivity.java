@@ -143,7 +143,6 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         hideSystemBars();
-        if (!locationStarted) startLocation();
         // Comprueba actualizaciones al abrir y, como mucho, cada 6 horas
         long now = System.currentTimeMillis();
         if (now - lastUpdateCheck > 6L * 3600 * 1000) {
@@ -158,12 +157,14 @@ public class MainActivity extends Activity {
         super.onStart();
         visible = true;
         connectRadio();
+        startLocation();
     }
 
     @Override
     protected void onStop() {
         visible = false;
         releaseRadio();
+        stopLocation();
         super.onStop();
     }
 
@@ -392,16 +393,26 @@ public class MainActivity extends Activity {
 
     // ================= ubicación =================
 
+    /** GPS cada segundo mientras se ve la pantalla (para el mapa y la velocidad); se para al salir. */
     private void startLocation() {
         if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) return;
+        if (locationStarted) return;
         try {
-            for (String p : new String[]{LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER}) {
-                if (lm.isProviderEnabled(p)) lm.requestLocationUpdates(p, 10 * 60 * 1000L, 1000f, locListener, Looper.getMainLooper());
-            }
-            locationStarted = true;
+            if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER))
+                lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000L, 0f, locListener, Looper.getMainLooper());
         } catch (SecurityException | IllegalArgumentException ignored) { }
+        try {
+            if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER))
+                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, locListener, Looper.getMainLooper());
+        } catch (SecurityException | IllegalArgumentException ignored) { }
+        locationStarted = true;
         sendLastLocation();
+    }
+
+    private void stopLocation() {
+        try { lm.removeUpdates(locListener); } catch (Exception ignored) { }
+        locationStarted = false;
     }
 
     private void sendLastLocation() {
@@ -417,8 +428,16 @@ public class MainActivity extends Activity {
         if (best != null) sendLocation(best);
     }
 
+    private long lastGpsFix = 0;
+
     private void sendLocation(Location l) {
-        js("PI.onLocation(" + l.getLatitude() + "," + l.getLongitude() + ")");
+        boolean gps = LocationManager.GPS_PROVIDER.equals(l.getProvider());
+        if (gps) lastGpsFix = System.currentTimeMillis();
+        // Si el GPS va bien, se ignora la posición aproximada de la red (salta mucho)
+        else if (System.currentTimeMillis() - lastGpsFix < 10000) return;
+        double kmh = l.hasSpeed() ? l.getSpeed() * 3.6 : -1;
+        double brg = l.hasBearing() ? l.getBearing() : -1;
+        js("PI.onLocation(" + l.getLatitude() + "," + l.getLongitude() + "," + kmh + "," + brg + "," + gps + ")");
     }
 
     // ================= actualizaciones =================
@@ -584,6 +603,50 @@ public class MainActivity extends Activity {
                 js("PI.onNet(" + id + "," + ok + "," + JSONObject.quote(body) + ")");
             });
         }
+
+        /** Tipo de conexión: wifi, movil o nada. */
+        @JavascriptInterface
+        public String net() {
+            try {
+                android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+                android.net.Network n = cm.getActiveNetwork();
+                if (n == null) return "nada";
+                android.net.NetworkCapabilities c = cm.getNetworkCapabilities(n);
+                if (c == null) return "nada";
+                if (c.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) return "wifi";
+                if (c.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR)) return "movil";
+                return "otra";
+            } catch (Exception e) {
+                return "nada";
+            }
+        }
+
+        /** Teléfono: abre el marcador (en la Junsun, su app de teléfono Bluetooth). */
+        @JavascriptInterface
+        public void phone() {
+            runOnUiThread(() -> {
+                try {
+                    Intent i = new Intent(Intent.ACTION_DIAL);
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(i);
+                } catch (Exception e) {
+                    toast("No se encuentra la app de teléfono");
+                }
+            });
+        }
+
+        /** Icono de una app (para los favoritos). */
+        @JavascriptInterface
+        public String icon(String pkg) {
+            try {
+                return bitmapB64(drawableToBitmap(getPackageManager().getApplicationIcon(pkg), 96), 96, true);
+            } catch (Exception e) {
+                return "";
+            }
+        }
+
+        @JavascriptInterface
+        public boolean has(String pkg) { return installed(pkg); }
 
         @JavascriptInterface
         public void openUrl(String url) {
