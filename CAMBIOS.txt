@@ -1,1 +1,1 @@
-• Arreglado: si elegías Pro Maps desde «Todas las apps», la tarjeta intentaba abrirla en ventana libre en vez de encajarla
+• Tarjeta con Pro Maps: si Pro Maps no aparece, Pro Inicio lo reintenta sola y, si no, te da un botón «Reintentar» (necesita Pro Maps 3.13)

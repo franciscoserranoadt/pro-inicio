@@ -577,6 +577,7 @@
   const navPkg = () => cfg.nav.t === 'pro' ? PRO[cfg.nav.id].pkg : cfg.nav.pkg;
   const navCls = () => cfg.nav.t === 'app' ? (cfg.nav.cls || '') : '';
   let cardState = '';
+  let cardShownAt = 0, cardRetries = 0, cardWatch = 0;
   let winOpenedOnce = false;
 
   function cardButtons(list) {
@@ -927,9 +928,20 @@
     toast,
     onMedia(m) { media = m || { has: false }; renderMedia(); },
     onCard(st) {
+      if (st === 'shown') { cardShownAt = Date.now(); cardRetries = 0; clearTimeout(cardWatch); return; }
       cardState = st === 'ok' ? '' : st;
       drawCardMsg();
-      if (st === 'ok') $('cmText').textContent = 'Si Pro Maps no aparece, toca la hora y vuelve.';
+      if (st === 'ok') {
+        // Pro Maps ha recibido la orden: si en 6 s no confirma que se ve, se reintenta (2 veces) y luego se ofrece un botón
+        clearTimeout(cardWatch);
+        const asked = Date.now();
+        cardWatch = setTimeout(() => {
+          if (cardShownAt > asked || cardKind() !== 'promaps') return;
+          if (cardRetries < 2) { cardRetries++; A.cardRetry(); return; }
+          cardMsg('Pro Maps no aparece en la tarjeta', 'Toca «Reintentar». Si sigue sin salir, abre Pro Maps, espera a que cargue y vuelve a Pro Inicio.',
+            [['Reintentar', () => { cardRetries = 0; cardState = ''; drawCardMsg(); A.cardRetry(); }], ['Abrir Pro Maps', () => openPro('maps'), 'ghost']]);
+        }, 6000);
+      }
     },
     onLocation(lat, lon, kmh, brg, gps) {
       loc = { lat, lon };

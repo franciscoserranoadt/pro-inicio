@@ -77,6 +77,7 @@ Java, con una sola librería: `androidx.media3:media3-session` (para hablar con 
 
 ## 5. Historial
 - **1.0.1** Primera versión.
+- **1.0.12** Pro Maps 3.13 confirma «shown» al colocarse; Pro Inicio reintenta 2 veces si no llega en 6 s y luego ofrece «Reintentar». Confirmado el 27-nov: Pro Maps en la tarjeta funciona en el móvil y en la Junsun.
 - **1.0.11** Pro Maps elegida desde «Todas las apps» ahora también va en modo tarjeta (antes iba por ventana libre).
 - **1.0.10** Abre las opciones de desarrollador por varios caminos (Junsun las esconde) y muestra el estado de las ventanas libres. La Junsun V9 es Android 9 por dentro (compilación PKQ1, msm8953) aunque diga 13.
 - **1.0.9** (la 1.0.8 no compiló) Ventana libre con HiddenApiBypass 4.3 (setLaunchWindowingMode es una función oculta de Android) y aviso si se abre a pantalla completa.
