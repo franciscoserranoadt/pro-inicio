@@ -17,11 +17,11 @@ Diseño tipo «pantalla de coche» (pedido el 27-nov a partir de una imagen esti
 | **Barra de arriba** | Hora, fecha, GPS, conexión (wifi / 4G / sin red), tiempo | Mostrar u ocultar cada cosa. Mantener pulsada abre Personalizar. |
 | **Botones** (arriba, en la barra de estado; o a la izquierda) | De serie: Inicio · Navegar · Pro Radio · Teléfono · Todas las apps · Personalizar · Pro OBD | Cada botón (hasta 8): cualquier app, app Pro o botón especial; mover, quitar, ocultar la barra. En vertical va abajo. |
 | **Mapa** | El navegador de verdad (Pro Maps encajada, u otro en ventana libre) o el mapa propio: mapa en directo (MapLibre + OpenFreeMap, mismos estilos que Pro Maps), edificios 3D, flecha con tu posición, tarjeta de la calle, velocidad, + − centrar | Navegador que se abre al tocarlo (Pro Maps de serie, o cualquier app: Waze, Google Maps…), estilo (Auto/Oscuro/Claro/Suave), 3D, cada tarjeta y botón, o quitar el mapa entero. |
-| **2 tarjetas** | De serie: Música (Pro Radio) arriba y Apps abajo | Cada una puede ser Música, Apps, Tiempo (ahora + 5 horas), Reloj, Velocidad o Nada; a la derecha o a la izquierda. |
+| **2 tarjetas** | De serie: Música (Pro Radio) arriba y Apps abajo | Cada una puede ser Música, Apps, **Widget**, Tiempo (ahora + 5 horas), Reloj, Velocidad o Nada; a la derecha o a la izquierda. |
 | **Cuadro de apps** | Pro Maps, Pro Radio, Pro OBD, Pro Garaje, favoritas, Más apps, Añadir | Añadir, cambiar, mover y quitar cualquier botón. |
 
 **Botones especiales:** Inicio, Navegar (abre el navegador elegido), Todas las apps, Añadir, Personalizar, Teléfono, Vacío.
-**Mantener pulsado** cualquier botón, tarjeta o el mapa abre su menú (cambiar, mover, quitar, personalizar).
+**Mantener pulsado** cualquier botón, tarjeta, widget o el mapa abre su menú (cambiar, mover, quitar, personalizar).
 **Temas:** Medianoche (de serie), Carbono, Grafito, Océano, Hielo, Turquesa, Esmeralda, Bosque, Oro, Cobre, Atardecer, Lava, Rubí, Nissan, Rosa, Violeta, Neón, Retro 80, y claros: Ártico, Arena, Menta, Lavanda. Están en `THEMES` (app.js); cada tema genera las variables CSS.
 La configuración se guarda en el aparato (`localStorage`, clave `pi.cfg`); «Restablecer» vuelve al diseño original manteniendo el tema.
 
@@ -31,6 +31,11 @@ Francisco quiere manejar el navegador (buscar destino, gasolineras…) desde la 
 - **Resultado (27-nov): se queda Pro Maps.** Pro Maps en la tarjeta funciona en el móvil y en la Junsun. Waze y Google Maps en ventana libre **no funcionan** en ninguno de los dos (la Junsun es Android 9 y esconde el ajuste; el Xiaomi con HyperOS no tiene «Habilitar ventanas de formato libre»). Francisco decidió dejarlo así; el código de la ventana libre se queda por si algún día cambia de pantalla.
 - **Otro navegador (Waze, Google Maps…):** se abre en una **ventana libre** (freeform) con la posición y el tamaño de la tarjeta (`ActivityOptions.setLaunchBounds`). Solo funciona si la pantalla tiene activado «Habilitar ventanas de formato libre» en Opciones de desarrollador (Pro Inicio explica los pasos). **Es una prueba:** puede que la Junsun no lo permita.
 - Opción «Mapa de Pro Inicio»: el mapa propio de antes (MapLibre) que abre el navegador al tocarlo.
+
+### Tarjeta Widget, música de otras apps y botón Teléfono (27-nov, v1.0.15)
+- **Widget:** cualquier tarjeta puede ser «Widget». Android dibuja el widget de verdad (`AppWidgetHost`, id 0x5049) en un `WidgetFrame` nativo colocado encima del hueco de la tarjeta (`showWidget`, con las coordenadas que manda `syncWidgets()` cada 700 ms y al abrir o cerrar paneles: con un panel o menú abierto el widget se esconde). Elegir: `widgetList` → lista agrupada por app con su muestra; `widgetAdd` → la primera vez Android pregunta «Permitir siempre / Crear»; si el widget tiene ajustes propios, se abren. Mantener pulsado el widget → menú (cambiar, quitar, cambiar la tarjeta). El id de cada tarjeta se guarda en el aparato (`wg_top` / `wg_bottom` y `cfg.widgets`); **no se sincroniza** con el Código Pro.
+- **Música de otras apps:** cada 3 s mira si suena algo que no es Pro Radio (`AudioManager.isMusicActive`). Si sí, la tarjeta Música pone «Música de otra app» y ⏮ ⏯ ⏭ mandan teclas multimedia (`dispatchMediaKeyEvent`) a esa app (Deezer, YouTube…). Tocar la parte de arriba vuelve a Pro Radio (`playRadio`). No puede mostrar el título de otras apps (haría falta el permiso prohibido).
+- **Teléfono:** antes pedía un marcador genérico (`ACTION_DIAL`) y en la Junsun no pasaba nada. Ahora prueba: 1) la app elegida (`phonePkg`); 2) la app cuyo nombre sea «Teléfono», «Bluetooth», «Phone»… (sin contar Android Auto). Si no hay ninguna, pide elegirla una vez. Se cambia en Personalizar → Sistema → «App del teléfono» o manteniendo pulsado el botón. **1.0.17:** se quitó el marcador genérico (`ACTION_DIAL`) como último recurso, porque en la Junsun abría los ajustes de Android Auto. En la Junsun las llamadas van por el Bluetooth del móvil, con la app de teléfono Bluetooth de la propia pantalla.
 
 ### Código Pro: móvil ⇄ coche (27-nov)
 Personalizar → **Móvil y coche** → Código Pro. Un solo código para todas las apps Pro (ver `codigo-pro/LEEME - Código Pro.md` en el proyecto). Pro Inicio sincroniza el **tema, los botones de apps (barra y cuadro) y el navegador elegido** (canal `inicio`, gana el último cambio). La colocación del mapa y las tarjetas queda distinta en cada pantalla (decisión de Francisco). Archivos: `ProSync.java`, `SyncReceiver.java`, `assets/prosync.js` (iguales en las 5 apps).
@@ -70,8 +75,8 @@ El botón «atrás» no sale de la app (es la pantalla de inicio): solo cierra p
 |---|---|
 | `app/src/main/assets/index.html` | Estructura de la pantalla |
 | `app/src/main/assets/style.css` | Diseño (horizontal Junsun y vertical móvil) |
-| `app/src/main/assets/app.js` | Hora, tiempo, botones, reproductor, cajón de apps, ajustes, aviso de actualización |
-| `MainActivity.java` | WebView a pantalla completa + puente `Android.*` (abrir apps, lista de apps, lo que suena, ubicación, peticiones web, actualizar) |
+| `app/src/main/assets/app.js` | Hora, tiempo, botones, reproductor, cajón de apps, widgets, ajustes, aviso de actualización |
+| `MainActivity.java` | WebView a pantalla completa (dentro de un `FrameLayout` donde van los widgets) + puente `Android.*` (abrir apps, lista de apps, widgets, lo que suena, teclas multimedia, teléfono, ubicación, peticiones web, actualizar) |
 | `Updater.java` | Comprueba e instala versiones nuevas |
 | `BootReceiver.java` | Abre Pro Inicio al encender el coche (si está activado) |
 | `AndroidManifest.xml` | Permisos y registro como «pantalla de inicio» |
@@ -80,10 +85,9 @@ El botón «atrás» no sale de la app (es la pantalla de inicio): solo cierra p
 Java, con una sola librería: `androidx.media3:media3-session` (para hablar con Pro Radio).
 
 ## 5. Historial
-- **1.0.16** Código Pro: los iconos de las apps ya no viajan (llenaban ntfy y salía «Demasiados envíos hoy», error 429); cada aparato los pone con `Android.icon`. Tras un 429, `prosync.js` espera 1 h (`ps_block`) en vez de reintentar cada 2 min.
-- **1.0.15** Tarjeta «Widget» (widgets de Android de verdad: `AppWidgetHost` encima del hueco de la tarjeta; mantener pulsado = menú). Botones universales de música (teclas multimedia a Deezer/YouTube si suenan). Botón Teléfono arreglado: busca la app «Teléfono/Bluetooth», luego el marcador; si no, se elige y se guarda (`phonePkg`).
+- **1.0.17** Botón Teléfono: ya no abre los ajustes de Android Auto (sin marcador genérico; Android Auto excluido de la búsqueda). Si no encuentra la app de llamadas Bluetooth, pregunta cuál es.
+- **1.0.15** Tarjeta Widget, botones universales de música (Deezer, YouTube…) y botón Teléfono arreglado. Publicada el 27-nov; falta probarla en la Junsun.
 - **1.0.14** Código Pro: tema, botones de apps y navegador iguales en el móvil y el coche, cifrado.
-- **1.0.1** Primera versión.
 - **1.0.13** Botones de la barra lateral arriba, en la barra de estado (pedido el 27-nov para que el mapa ocupe más). Ajuste «Posición de los botones»: Arriba (de serie) / Izquierda. En vertical van abajo. La fecha se oculta en horizontal con los botones arriba. Mantener pulsada la hora abre Personalizar.
 - **1.0.12** Pro Maps 3.13 confirma «shown» al colocarse; Pro Inicio reintenta 2 veces si no llega en 6 s y luego ofrece «Reintentar». Confirmado el 27-nov: Pro Maps en la tarjeta funciona en el móvil y en la Junsun.
 - **1.0.11** Pro Maps elegida desde «Todas las apps» ahora también va en modo tarjeta (antes iba por ventana libre).
@@ -95,10 +99,20 @@ Java, con una sola librería: `androidx.media3:media3-session` (para hablar con 
 - **1.0.4** Diseño nuevo tipo pantalla de coche (mapa en directo, barra lateral, música y cuadro de apps con favoritas).
 - **1.0.3** Botones «Descargar» también para Pro OBD y Pro Garaje (ya existen). Primera prueba en la Junsun (25-nov): se ve bien a 1280×720.
 - **1.0.2** Quitado el permiso de «acceso a notificaciones»: Google Play Protect bloqueaba la instalación («Aplicación bloqueada para proteger tu dispositivo»). Ahora lee lo que suena directamente de Pro Radio.
+- **1.0.1** Primera versión.
 
 ## Decisiones tomadas
 - **No usar nunca el permiso de «acceso a notificaciones»** (NotificationListenerService) ni otros permisos «sensibles» (accesibilidad, SMS): Play Protect bloquea la instalación de apps que no vienen de Google Play y los piden.
-- El reproductor solo muestra Pro Radio (no Spotify ni otras apps), a cambio de no necesitar ese permiso.
+- El reproductor solo muestra los títulos de Pro Radio; de otras apps (Deezer, YouTube) solo se controla con ⏮ ⏯ ⏭ o con su widget, a cambio de no necesitar ese permiso.
+- **27-nov: no repetir en Pro Inicio lo que ya hacen las otras apps Pro** (modo noche, gasolineras, datos de OBD, avisos de Garaje, destinos de Pro Maps). Francisco ya lo tiene en cada app.
+- **27-nov: mensajes rápidos sin envío automático.** WhatsApp no deja que otra app envíe sola; haría falta el permiso de accesibilidad (prohibido, ver arriba). Siempre queda un toque final en «Enviar».
+- **27-nov: los widgets son de cada pantalla** (no se copian del móvil al coche con el Código Pro).
+- **27-nov: el botón Teléfono nunca abre el marcador genérico de Android** (en la Junsun es Android Auto); las llamadas van por la app de teléfono Bluetooth de la pantalla.
 
-## 6. Ideas pendientes (no pedidas aún)
-Fondo de pantalla a elegir, modo noche, velocidad GPS en grande, accesos directos extra (teléfono, Bluetooth), widget de Pro OBD cuando exista.
+## 6. Próxima versión (pedida el 27-nov, sin empezar)
+Ya hechas en la 1.0.15: tarjeta Widget y botones universales de música. Francisco usa **Deezer y YouTube** para la música (Deezer tiene widget; YouTube normal no).
+1. **Rutinas al arrancar:** al encender el coche (`BootReceiver`), según día y hora: poner una emisora de Pro Radio, abrir una app o Pro Maps hacia un destino. Lo del destino necesita que Pro Maps acepte «navega a…» (cambio pequeño en Pro Maps, por aviso, como `CARD`).
+2. **Mensajes rápidos por WhatsApp:** botones con texto ya escrito («Voy de camino», «Llego en 10 min»…) para un contacto; abren WhatsApp con el mensaje y queda pulsar Enviar. En la Junsun hace falta WhatsApp **como dispositivo vinculado** (misma cuenta que el Xiaomi, por código QR). **27-nov: Francisco ya ha vinculado WhatsApp en la Junsun.**
+
+## 7. Ideas pendientes (no pedidas aún)
+Dónde he aparcado (Junsun → móvil por Código Pro), órdenes por voz, contactos de un toque, diseños guardados, pantalla de reposo, fondo de pantalla a elegir.
