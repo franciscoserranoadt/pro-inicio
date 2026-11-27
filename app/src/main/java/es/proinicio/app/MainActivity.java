@@ -819,14 +819,39 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void devSettings() {
             runOnUiThread(() -> {
-                try {
-                    Intent i = new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS);
-                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(i);
-                } catch (Exception e) {
-                    try { startActivity(new Intent(Settings.ACTION_DEVICE_INFO_SETTINGS)); } catch (Exception ignored) { }
+                // Junsun esconde el menú: se prueba a abrirlo directamente por varios caminos
+                Intent[] tries = {
+                    new Intent().setClassName("com.android.settings", "com.android.settings.Settings$DevelopmentSettingsDashboardActivity"),
+                    new Intent().setClassName("com.android.settings", "com.android.settings.Settings$DevelopmentSettingsActivity"),
+                    new Intent().setClassName("com.android.settings", "com.android.settings.DevelopmentSettings"),
+                    new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS),
+                    new Intent("com.android.settings.APPLICATION_DEVELOPMENT_SETTINGS")
+                };
+                for (Intent i : tries) {
+                    try {
+                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(i);
+                        return;
+                    } catch (Exception ignored) { }
                 }
+                toast("Esta pantalla no deja abrir las opciones de desarrollador");
             });
+        }
+
+        /** Datos para saber si esta pantalla admite ventanas libres. */
+        @JavascriptInterface
+        public String diag() {
+            try {
+                JSONObject o = new JSONObject();
+                o.put("sdk", Build.VERSION.SDK_INT);
+                o.put("release", Build.VERSION.RELEASE);
+                o.put("feature", getPackageManager().hasSystemFeature("android.software.freeform_window_management"));
+                o.put("freeform", Settings.Global.getInt(getContentResolver(), "enable_freeform_support", 0));
+                o.put("resizable", Settings.Global.getInt(getContentResolver(), "force_resizable_activities", 0));
+                return o.toString();
+            } catch (Exception e) {
+                return "{}";
+            }
         }
 
         @JavascriptInterface

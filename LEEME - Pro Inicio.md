@@ -77,6 +77,7 @@ Java, con una sola librería: `androidx.media3:media3-session` (para hablar con 
 
 ## 5. Historial
 - **1.0.1** Primera versión.
+- **1.0.10** Abre las opciones de desarrollador por varios caminos (Junsun las esconde) y muestra el estado de las ventanas libres. La Junsun V9 es Android 9 por dentro (compilación PKQ1, msm8953) aunque diga 13.
 - **1.0.9** (la 1.0.8 no compiló) Ventana libre con HiddenApiBypass 4.3 (setLaunchWindowingMode es una función oculta de Android) y aviso si se abre a pantalla completa.
 - **1.0.7** Arreglado «Cambiar» en Personalizar (la lista de apps quedaba detrás).
 - **1.0.6** Navegador de verdad en la tarjeta del mapa (Pro Maps en modo tarjeta; otros en ventana libre, de prueba).

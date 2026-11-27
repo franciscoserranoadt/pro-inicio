@@ -1,2 +1,2 @@
-• «Abrir … aquí»: ahora pide de verdad a Android que abra el navegador en una ventana encima de la tarjeta
-• Si la pantalla lo abre a pantalla completa, Pro Inicio te avisa y te explica qué activar
+• «Opciones de desarrollador»: Pro Inicio las abre directamente aunque la pantalla las esconda
+• La tarjeta del navegador muestra si tu pantalla tiene activadas las ventanas libres
