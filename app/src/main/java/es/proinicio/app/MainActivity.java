@@ -89,6 +89,35 @@ public class MainActivity extends Activity {
     private String pendSlot = null;
     private int pendId = -1;
 
+    // ---- Rutinas al arrancar: encender el coche (o despertar la pantalla tras un rato apagada) ----
+    static final String EXTRA_BOOT = "pi_boot";
+    static final long WAKE_MIN_OFF = 10 * 60 * 1000L;   // apagada al menos 10 min = arranque nuevo
+    private String pendingStart = null;
+    private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            String a = i.getAction();
+            long now = android.os.SystemClock.elapsedRealtime();
+            if (Intent.ACTION_SCREEN_OFF.equals(a)) {
+                prefs.edit().putLong("screenOff", System.currentTimeMillis()).apply();
+            } else if (Intent.ACTION_SCREEN_ON.equals(a)) {
+                long off = prefs.getLong("screenOff", 0);
+                if (off > 0 && System.currentTimeMillis() - off >= WAKE_MIN_OFF) {
+                    prefs.edit().putLong("screenOff", 0).apply();
+                    handler.postDelayed(() -> startEvent("wake"), 2500);
+                }
+            }
+        }
+    };
+
+    /** Avisa a la página de que el coche acaba de arrancar (la página decide qué rutina toca). */
+    private void startEvent(String kind) {
+        long last = prefs.getLong("startAt", 0);
+        if (System.currentTimeMillis() - last < 2 * 60 * 1000L) return; // ya avisado (encendido + despertar a la vez)
+        prefs.edit().putLong("startAt", System.currentTimeMillis()).apply();
+        if (!pageReady) { pendingStart = kind; return; }
+        js("PI.onStart && PI.onStart(" + JSONObject.quote(kind) + ")");
+    }
+
     // ---- Música de otras apps (Deezer, YouTube…): teclas multimedia, sin permisos ----
     private AudioManager audio;
     private boolean extMusic = false;
@@ -156,6 +185,11 @@ public class MainActivity extends Activity {
                 pageReady = true;
                 pushMedia();
                 sendLastLocation();
+                if (pendingStart != null) {
+                    final String k = pendingStart;
+                    pendingStart = null;
+                    handler.postDelayed(() -> js("PI.onStart && PI.onStart(" + JSONObject.quote(k) + ")"), 1500);
+                }
             }
         });
         web.addJavascriptInterface(new Bridge(), "Android");
@@ -185,6 +219,19 @@ public class MainActivity extends Activity {
             if (Build.VERSION.SDK_INT >= 33) registerReceiver(cardStatus, cf, Context.RECEIVER_EXPORTED);
             else registerReceiver(cardStatus, cf);
         } catch (Exception ignored) { }
+
+        try {
+            IntentFilter sf = new IntentFilter();
+            sf.addAction(Intent.ACTION_SCREEN_ON);
+            sf.addAction(Intent.ACTION_SCREEN_OFF);
+            registerReceiver(screenReceiver, sf);
+        } catch (Exception ignored) { }
+        // Arranque: abierta por BootReceiver, o la pantalla se acaba de encender (menos de 3 min)
+        Intent st = getIntent();
+        if ((st != null && st.getBooleanExtra(EXTRA_BOOT, false))
+                || android.os.SystemClock.elapsedRealtime() < 3 * 60 * 1000L) {
+            startEvent("boot");
+        }
 
         if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -250,6 +297,7 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         try { unregisterReceiver(pkgReceiver); } catch (Exception ignored) { }
         try { unregisterReceiver(cardStatus); } catch (Exception ignored) { }
+        try { unregisterReceiver(screenReceiver); } catch (Exception ignored) { }
         sendCard("hide");
         try { lm.removeUpdates(locListener); } catch (Exception ignored) { }
         super.onDestroy();
@@ -273,6 +321,7 @@ public class MainActivity extends Activity {
             }
             return;
         }
+        if (intent.getBooleanExtra(EXTRA_BOOT, false)) { startEvent("boot"); return; }
         // Botón «casa»: cerrar paneles y volver a la pantalla principal
         js("PI.home && PI.home()");
     }
@@ -519,6 +568,90 @@ public class MainActivity extends Activity {
             if (!ok) openApp(PKG_RADIO);
             pushMedia();
         }, 3000);
+    }
+
+    /** Pone una memoria concreta de Pro Radio (por su id). Si Pro Radio está cerrada, la abre por dentro primero. */
+    private void playStation(String mediaId, int tries) {
+        extMusic = false;
+        if (!installed(PKG_RADIO)) { toast("Pro Radio no está instalada"); return; }
+        MediaController c = radio;
+        if (c == null || !c.isConnected()) {
+            connectRadio();
+            if (tries < 5) handler.postDelayed(() -> playStation(mediaId, tries + 1), 1500);
+            else startRadio();
+            return;
+        }
+        try {
+            if (musicActive() && !radioPlaying()) mediaKey(KeyEvent.KEYCODE_MEDIA_PAUSE);
+            if (c.getMediaItemCount() == 0) {
+                c.play(); // Pro Radio carga sus memorias (como al pulsar play en el volante)
+                if (tries < 5) handler.postDelayed(() -> playStation(mediaId, tries + 1), 1500);
+                return;
+            }
+            int idx = -1;
+            for (int i = 0; i < c.getMediaItemCount(); i++) {
+                if (c.getMediaItemAt(i).mediaId.equals(mediaId)) { idx = i; break; }
+            }
+            if (idx >= 0 && idx != c.getCurrentMediaItemIndex()) c.seekToDefaultPosition(idx);
+            if (c.getPlaybackState() == Player.STATE_IDLE) c.prepare();
+            c.play();
+        } catch (Exception ignored) { }
+        handler.postDelayed(this::pushMedia, 800);
+    }
+
+    /** Memorias de Pro Radio (para elegir en las rutinas). Llega a PI.onStations(lista). */
+    private void sendStations(int tries) {
+        MediaController c = radio;
+        if ((c == null || !c.isConnected()) && tries < 4) {
+            connectRadio();
+            handler.postDelayed(() -> sendStations(tries + 1), 1200);
+            return;
+        }
+        JSONArray arr = new JSONArray();
+        try {
+            if (c != null && c.isConnected()) {
+                for (int i = 0; i < c.getMediaItemCount(); i++) {
+                    MediaItem it = c.getMediaItemAt(i);
+                    JSONObject o = new JSONObject();
+                    o.put("id", it.mediaId);
+                    o.put("name", it.mediaMetadata.title != null ? it.mediaMetadata.title.toString() : ("Memoria " + (i + 1)));
+                    arr.put(o);
+                }
+            }
+        } catch (Exception ignored) { }
+        js("PI.onStations && PI.onStations(" + arr + ")");
+    }
+
+    /** WhatsApp con el mensaje ya escrito para un número (queda tocar Enviar). */
+    private boolean openWhatsApp(String phone, String text) {
+        String num = phone == null ? "" : phone.replaceAll("[^0-9]", "");
+        Uri u = Uri.parse("https://api.whatsapp.com/send?phone=" + num + "&text=" + Uri.encode(text == null ? "" : text));
+        for (String pkg : new String[]{"com.whatsapp", "com.whatsapp.w4b", null}) {
+            try {
+                if (pkg != null && !installed(pkg)) continue;
+                Intent i = new Intent(Intent.ACTION_VIEW, u);
+                if (pkg != null) i.setPackage(pkg);
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(i);
+                return true;
+            } catch (Exception ignored) { }
+        }
+        return false;
+    }
+
+    /** Abre el navegador con la ruta a un sitio (Pro Maps acepta «geo:»; Waze y Google Maps también). */
+    private boolean openNav(String pkg, double lat, double lon, String name) {
+        String q = lat + "," + lon + (name == null || name.isEmpty() ? "" : "(" + name.replace("(", "").replace(")", "") + ")");
+        Uri u = Uri.parse("geo:" + lat + "," + lon + "?q=" + Uri.encode(q));
+        try {
+            Intent i = new Intent(Intent.ACTION_VIEW, u);
+            if (pkg != null && !pkg.isEmpty() && installed(pkg)) i.setPackage(pkg);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(i);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private boolean openApp(String pkg) {
@@ -1174,6 +1307,26 @@ public class MainActivity extends Activity {
         public void widgetShow(String slot, int id, int x, int y, int w, int h, int r, boolean vis) {
             handler.post(() -> showWidget(slot, id, x, y, w, h, r, vis));
         }
+
+        /** Una memoria concreta de Pro Radio. */
+        @JavascriptInterface
+        public void radioStation(String mediaId) { handler.post(() -> playStation(mediaId == null ? "" : mediaId, 0)); }
+
+        @JavascriptInterface
+        public void radioStations() { handler.post(() -> sendStations(0)); }
+
+        /** Seguir con la última música de otra app (Deezer, YouTube…). */
+        @JavascriptInterface
+        public void resumeOther() { handler.post(() -> { extMusic = true; mediaKey(KeyEvent.KEYCODE_MEDIA_PLAY); }); }
+
+        @JavascriptInterface
+        public boolean whatsapp(String phone, String text) { return openWhatsApp(phone, text); }
+
+        @JavascriptInterface
+        public boolean hasWhatsApp() { return installed("com.whatsapp") || installed("com.whatsapp.w4b"); }
+
+        @JavascriptInterface
+        public boolean navTo(String pkg, double lat, double lon, String name) { return openNav(pkg, lat, lon, name); }
 
         /** Pone Pro Radio (y pausa la música de otra app). */
         @JavascriptInterface

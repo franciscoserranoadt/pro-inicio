@@ -1,1 +1,2 @@
-• Botón Teléfono: ya no abre los ajustes de Android Auto. Si no encuentra la app de llamadas Bluetooth, te pregunta cuál es una vez y la recuerda
+Nuevo: Mensajes rápidos por WhatsApp. Botón «💬 Mensajes»: eliges a quién y el mensaje, y se abre WhatsApp con el texto escrito (solo toca Enviar). Escribe {ubicacion} en un mensaje para mandar dónde estás. Los contactos y mensajes se copian al otro aparato con el Código Pro.
+Nuevo: Rutinas al arrancar (Personalizar → Rutinas al arrancar). Según el día y la hora: pon Pro Radio (o una memoria), sigue con Deezer/YouTube, abre una app o ve a un sitio con Pro Maps. Antes sale un aviso de 5 s para cancelarla. Botón «Probar» para verla sin apagar el coche.

@@ -106,6 +106,38 @@
   <div id="opts" class="opts"></div>
 </div>
 
+<!-- Mensajes rápidos por WhatsApp -->
+<div id="msgs" class="sheet hide">
+  <div class="sheethead">
+    <h2>💬 Mensajes rápidos</h2>
+    <button class="close" data-close="msgs" aria-label="Cerrar">✕</button>
+  </div>
+  <div id="msgList" class="pickscroll"></div>
+</div>
+
+<!-- Editar una rutina -->
+<div id="rutina" class="sheet hide">
+  <div class="sheethead">
+    <h2>🚗 Rutina al arrancar</h2>
+    <button id="rtDel" class="obtn red">Borrar</button>
+    <button id="rtTest" class="obtn ghost">▶ Probar</button>
+    <button id="rtSave" class="obtn">Guardar</button>
+    <button class="close" data-close="rutina" aria-label="Cerrar">✕</button>
+  </div>
+  <div id="rtOpts" class="opts"></div>
+</div>
+
+<!-- Elegir un sitio -->
+<div id="lugar" class="sheet hide">
+  <div class="sheethead">
+    <h2>🧭 ¿A dónde?</h2>
+    <input id="lugarQ" type="search" placeholder="Dirección o sitio (ej.: Calle Mayor 5, Madrid)" autocomplete="off">
+    <button id="lugarGo" class="obtn">Buscar</button>
+    <button class="close" data-close="lugar" aria-label="Cerrar">✕</button>
+  </div>
+  <div id="lugarList" class="opts"></div>
+</div>
+
 <!-- Menú de un botón (mantener pulsado) -->
 <div id="menu" class="modal hide">
   <div class="mbox">
@@ -125,6 +157,22 @@
       <button id="updGo" class="obtn">Actualizar</button>
     </div>
   </div>
+</div>
+
+<!-- Formulario pequeño -->
+<div id="form" class="modal hide">
+  <div class="mbox">
+    <h2 id="formTitle"></h2>
+    <div id="formFields"></div>
+    <div id="formBtns" class="mbtns"></div>
+  </div>
+</div>
+
+<!-- Aviso de rutina (5 s para cancelar) -->
+<div id="rtBanner" class="rtbanner hide">
+  <div class="rtt"><b id="rtText"></b><small id="rtSub"></small></div>
+  <button id="rtNow" class="obtn ghost">Ya</button>
+  <button id="rtCancel" class="obtn red">Cancelar</button>
 </div>
 
 <div id="toast" class="toast hide"></div>

@@ -12,6 +12,7 @@ public class BootReceiver extends BroadcastReceiver {
         try {
             Intent i = new Intent(c, MainActivity.class);
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            i.putExtra(MainActivity.EXTRA_BOOT, true);
             c.startActivity(i);
         } catch (Exception ignored) {
         }

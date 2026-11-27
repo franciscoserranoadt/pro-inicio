@@ -276,3 +276,44 @@ svg { display: block; fill: currentColor; }
 .wbtn b { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wbtn small { color: var(--muted); font-size: 13px; }
 .wtip { padding: 2px 4px 4px; font-size: 15px; line-height: 1.4; }
+
+/* ---------- Mensajes rápidos ---------- */
+.warn { background: rgba(229, 72, 77, .15); border: 1px solid rgba(229, 72, 77, .5); color: var(--txt); border-radius: 14px; padding: 12px 16px; margin: 4px 0 8px; font-size: 16px; }
+.crow { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 8px; }
+.cchip { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 6px; width: clamp(84px, 14vmin, 110px); padding: 10px 4px; border-radius: 18px; background: var(--card); border: 2px solid var(--line); }
+.cchip i { font-style: normal; width: clamp(48px, 10vmin, 64px); aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background: var(--tile); color: #fff; font-weight: 700; font-size: clamp(18px, 3.6vmin, 24px); }
+.cchip span { font-size: 15px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cchip.on { border-color: var(--acc2); background: var(--card2); }
+.cchip.on i { background: linear-gradient(140deg, #25d366, #128c7e); }
+.cchip.add { border-style: dashed; color: var(--muted); }
+.mgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(clamp(220px, 34vmin, 320px), 1fr)); gap: 10px; }
+.mbtn { min-height: clamp(64px, 11vmin, 84px); padding: 12px 18px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); text-align: left; font-size: clamp(16px, 3vmin, 21px); font-weight: 600; }
+.mbtn:active { background: var(--card2); }
+.mbtn.add { border-style: dashed; color: var(--muted); font-weight: 500; }
+
+/* ---------- Formulario ---------- */
+.ffield { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; font-size: 15px; color: var(--muted); }
+.ffield input, .tin { height: 54px; border-radius: 14px; border: 1px solid var(--line); background: var(--card2); color: var(--txt); padding: 0 16px; font-size: 19px; outline: none; font-family: inherit; }
+.tin { width: 100%; }
+.tin:disabled { opacity: .4; }
+
+/* ---------- Rutinas ---------- */
+.opt.click > div:first-child { cursor: pointer; flex: 1; }
+.seg.days { justify-content: flex-start; }
+.seg.days button { width: 56px; height: 52px; font-size: 18px; }
+.hrow { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.hrow label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 15px; flex: 1 1 140px; }
+.obtn.addact { align-self: flex-start; }
+#rutina .sheethead h2 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#lugarQ { flex: 1; min-width: 0; height: 56px; border-radius: 16px; border: 1px solid var(--line); background: var(--card2); color: var(--txt); padding: 0 18px; font-size: 19px; outline: none; }
+.opt.pl { text-align: left; width: 100%; }
+.rtbanner { position: fixed; left: 50%; top: 14px; transform: translateX(-50%); z-index: 40; display: flex; align-items: center; gap: 12px; width: min(760px, 94vw);
+  background: var(--card); border: 2px solid var(--acc); border-radius: 20px; padding: 14px 16px; box-shadow: 0 16px 40px rgba(0,0,0,.55); }
+.rtt { flex: 1; min-width: 0; }
+.rtt b { display: block; font-size: clamp(17px, 3.4vmin, 24px); }
+.rtt small { display: block; color: var(--muted); font-size: clamp(13px, 2.4vmin, 16px); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (orientation: portrait) {
+  #rutina .sheethead, #lugar .sheethead { flex-wrap: wrap; }
+  #rutina .sheethead h2, #lugar .sheethead h2 { flex: 1 1 100%; font-size: 22px; }
+  .rtbanner { flex-wrap: wrap; }
+}

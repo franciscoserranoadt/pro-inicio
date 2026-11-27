@@ -12,7 +12,9 @@
     media: () => {}, refreshMedia: () => {}, mediaPermission: () => {}, locationPermission: () => {},
     get: () => {}, openUrl: () => {}, homeSettings: () => {}, isHome: () => false, net: () => 'wifi',
     phone: () => '', setPhoneApp: () => {}, phoneApp: () => '', playRadio: () => {},
-    widgetList: () => setTimeout(() => PI.onWidgets([]), 200), widgetAdd: () => {}, widgetRemove: () => {}, widgetShow: () => {},
+    widgetList: () => setTimeout(() => PI.onWidgets([]), 200),
+    radioStation: () => {}, radioStations: () => setTimeout(() => PI.onStations([]), 200), resumeOther: () => {},
+    whatsapp: () => true, hasWhatsApp: () => true, navTo: () => true, widgetAdd: () => {}, widgetRemove: () => {}, widgetShow: () => {},
     icon: () => '', has: () => true, card: () => {}, cardPermission: () => {}, cardRetry: () => {},
     freeform: () => false, openWindow: () => false, devSettings: () => {}, diag: () => '{}',
     setPref: () => {}, getPref: (k, d) => d, checkUpdate: () => {}, doUpdate: () => {}
@@ -113,6 +115,7 @@
     garaje: 'M12 3 2 9v12h3v-9h14v9h3V9zM7 14h10v2H7zm0 3h10v2H7z',
     maps: 'M12 2 20 21 12 16.5 4 21Z',
     add: 'M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z',
+    msg: 'M12 2a10 10 0 0 0-8.7 14.9L2 22l5.2-1.3A10 10 0 1 0 12 2zm-4 8.5h8v2H8zm0-3.5h8v2H8zm0 7h5v2H8z',
     none: 'M5 11h14v2H5z'
   };
   const mono = (k) => '<svg viewBox="0 0 24 24"><path d="' + (MONO[k] || MONO.apps) + '"/></svg>';
@@ -125,7 +128,7 @@
   };
   const ACTS = {
     home: 'Inicio', nav: 'Navegar', apps: 'Todas las apps', more: 'Más apps', add: 'Añadir',
-    settings: 'Personalizar', phone: 'Teléfono', none: 'Vacío'
+    settings: 'Personalizar', phone: 'Teléfono', msg: 'Mensajes', none: 'Vacío'
   };
   const CARDS = { music: 'Música', apps: 'Apps', widget: 'Widget', weather: 'Tiempo', clock: 'Reloj', speed: 'Velocidad', none: 'Nada' };
 
@@ -141,7 +144,11 @@
       { t: 'act', id: 'more' }, { t: 'act', id: 'add' }],
     st: { date: true, gps: true, net: true, wx: true },
     // Widget de cada tarjeta (top / bottom): { id, label, pkg }. Es de cada aparato: no se sincroniza.
-    widgets: {}
+    widgets: {},
+    // Mensajes rápidos por WhatsApp (se sincronizan con el Código Pro: se escriben cómodamente en el móvil)
+    quick: { contacts: [], msgs: ['Voy de camino 🚗', 'Llego en 10 minutos', 'Estoy aparcando', 'Voy con retraso, llego en cuanto pueda', 'Estoy aquí 📍 {ubicacion}'] },
+    // Rutinas al arrancar (de cada aparato: no se sincronizan)
+    routines: []
   });
 
   let cfg = store.get('cfg', null);
@@ -156,10 +163,15 @@
     Object.keys(d).forEach((k) => { if (cfg[k] === undefined) cfg[k] = d[k]; });
     cfg.st = Object.assign(d.st, cfg.st);
   }
+  // Versión 1.0.16: el botón «Mensajes» aparece una vez en la barra (se puede quitar)
+  if (!cfg.msgBtn) {
+    cfg.msgBtn = true;
+    if (!cfg.railItems.some((x) => x.t === 'act' && x.id === 'msg') && cfg.railItems.length < 8) cfg.railItems.push({ t: 'act', id: 'msg' });
+  }
   // ---------- Código Pro: móvil ⇄ coche (prosync.js) ----------
   // Se sincronizan el tema, los botones de apps (barra y cuadro) y el navegador elegido.
   // La colocación (mapa, tarjetas, lado…) queda distinta en cada pantalla.
-  const SYNC_KEYS = ['theme', 'grid', 'railItems', 'nav'];
+  const SYNC_KEYS = ['theme', 'grid', 'railItems', 'nav', 'quick'];
   // Los iconos NO viajan: son imágenes grandes y llenaban ntfy (error 429). Cada aparato pone los suyos.
   const noIcon = (it) => (it && it.t === 'app') ? { t: 'app', pkg: it.pkg, cls: it.cls, label: it.label } : it;
   const syncPart = () => ({ theme: cfg.theme, grid: cfg.grid.map(noIcon), railItems: cfg.railItems.map(noIcon), nav: noIcon(cfg.nav) });
@@ -220,6 +232,7 @@
       case 'add': pick({ title: 'Añadir al cuadro de apps', acts: true }, (x) => { addToGrid(x); }); break;
       case 'settings': openSettings(); break;
       case 'phone': if (!A.phone()) choosePhone(true); break;
+      case 'msg': openMsgs(); break;
       default: break;
     }
   }
@@ -367,6 +380,7 @@
     get: syncPart,
     apply(d) {
       fromRemote = true;
+      if (d && d.quick && !Array.isArray(d.quick.contacts)) delete d.quick;
       if (d && d.theme !== undefined) cfg.theme = d.theme;
       if (d && Array.isArray(d.grid)) cfg.grid = d.grid.map(withIcon);
       if (d && Array.isArray(d.railItems)) cfg.railItems = d.railItems.map(withIcon);
@@ -863,7 +877,7 @@
     A.widgetList();
   }
 
-  const overlayOpen = () => !!document.querySelector('.sheet:not(.hide), .modal:not(.hide)');
+  const overlayOpen = () => !!document.querySelector('.sheet:not(.hide), .modal:not(.hide), #rtBanner:not(.hide)');
   let wgKeys = {};
   /** Le dice a Android dónde está cada widget y si se ve (se esconde con los paneles abiertos). */
   function syncWidgets(force) {
@@ -974,6 +988,340 @@
   }
 
   // =====================================================================
+  //  FORMULARIO PEQUEÑO (escribir nombres, teléfonos, mensajes…)
+  // =====================================================================
+  function form(title, fields, onSave, onDelete) {
+    $('formTitle').textContent = title;
+    const box = $('formFields');
+    box.innerHTML = '';
+    fields.forEach((f) => {
+      const l = document.createElement('label'); l.className = 'ffield';
+      l.innerHTML = '<span></span><input>';
+      l.querySelector('span').textContent = f.label;
+      const i = l.querySelector('input');
+      i.type = f.type || 'text'; i.value = f.value || ''; i.placeholder = f.ph || ''; i.dataset.k = f.key;
+      if (f.type === 'tel') i.inputMode = 'tel';
+      box.appendChild(l);
+    });
+    const btns = $('formBtns');
+    btns.innerHTML = '';
+    const mk = (t, cls, fn) => { const b = document.createElement('button'); b.className = 'obtn ' + cls; b.textContent = t; b.addEventListener('click', fn); btns.appendChild(b); };
+    if (onDelete) mk('Borrar', 'red', () => { $('form').classList.add('hide'); onDelete(); });
+    mk('Cancelar', 'ghost', () => $('form').classList.add('hide'));
+    mk('Guardar', '', () => {
+      const v = {};
+      box.querySelectorAll('input').forEach((i) => { v[i.dataset.k] = i.value.trim(); });
+      if (onSave(v) !== false) $('form').classList.add('hide');
+    });
+    $('form').classList.remove('hide');
+    setTimeout(() => { const i = box.querySelector('input'); if (i) i.focus(); }, 150);
+  }
+
+  // =====================================================================
+  //  MENSAJES RÁPIDOS POR WHATSAPP
+  //  Abre WhatsApp con el mensaje escrito para el contacto: solo queda tocar Enviar
+  //  (WhatsApp no deja que otra app envíe sola).
+  // =====================================================================
+  function normPhone(p) {
+    let d = String(p || '').replace(/[^0-9+]/g, '');
+    if (d.startsWith('+')) d = d.slice(1);
+    else if (d.startsWith('00')) d = d.slice(2);
+    else if (d.length === 9 && /^[6789]/.test(d)) d = '34' + d; // número español sin prefijo
+    return d;
+  }
+  const LOC_RX = /\{ubicacion\}/gi;
+  const hasLoc = (t) => /\{ubicacion\}/i.test(t);
+  function fillMsg(t) {
+    const where = loc ? 'https://maps.google.com/?q=' + loc.lat.toFixed(5) + ',' + loc.lon.toFixed(5) : '';
+    return String(t).replace(LOC_RX, where).trim();
+  }
+  function editContact(i) {
+    const c = i == null ? { name: '', phone: '' } : cfg.quick.contacts[i];
+    form(i == null ? 'Nuevo contacto' : 'Contacto', [
+      { key: 'name', label: 'Nombre', value: c.name, ph: 'Ej.: Casa, Ana, Trabajo' },
+      { key: 'phone', label: 'Número de WhatsApp', value: c.phone, type: 'tel', ph: 'Ej.: 600 123 456' }
+    ], (v) => {
+      if (!v.name || normPhone(v.phone).length < 8) { toast('Escribe el nombre y el número'); return false; }
+      const n = { name: v.name, phone: v.phone };
+      if (i == null) cfg.quick.contacts.push(n); else cfg.quick.contacts[i] = n;
+      save(); refreshQuick();
+    }, i == null ? null : () => { cfg.quick.contacts.splice(i, 1); save(); refreshQuick(); });
+  }
+  function editMsg(i) {
+    form(i == null ? 'Nuevo mensaje' : 'Mensaje', [
+      { key: 'text', label: 'Texto (escribe {ubicacion} para mandar dónde estás)', value: i == null ? '' : cfg.quick.msgs[i], ph: 'Ej.: Llego en 5 minutos' }
+    ], (v) => {
+      if (!v.text) return false;
+      if (i == null) cfg.quick.msgs.push(v.text); else cfg.quick.msgs[i] = v.text;
+      save(); refreshQuick();
+    }, i == null ? null : () => { cfg.quick.msgs.splice(i, 1); save(); refreshQuick(); });
+  }
+  function refreshQuick() {
+    if (!$('msgs').classList.contains('hide')) drawMsgs();
+    if (!$('ajustes').classList.contains('hide')) renderOpts();
+  }
+  let msgTo = store.get('msgTo', 0);
+  function openMsgs() { closeSheets(); drawMsgs(); $('msgs').classList.remove('hide'); }
+  function drawMsgs() {
+    const box = $('msgList');
+    box.innerHTML = '';
+    const q = cfg.quick, cs = q.contacts;
+    if (!A.hasWhatsApp()) {
+      const w = document.createElement('div'); w.className = 'warn';
+      w.textContent = 'WhatsApp no está instalado en esta pantalla. Instálalo y vincúlalo a tu cuenta (⋮ → Vincular a una cuenta existente).';
+      box.appendChild(w);
+    }
+    const h1 = document.createElement('h3'); h1.textContent = 'Para'; box.appendChild(h1);
+    const row = document.createElement('div'); row.className = 'crow';
+    if (msgTo >= cs.length) msgTo = 0;
+    cs.forEach((c, i) => {
+      const b = document.createElement('button');
+      b.className = 'cchip' + (i === msgTo ? ' on' : '');
+      b.innerHTML = '<i></i><span></span>';
+      b.querySelector('i').textContent = initials(c.name);
+      b.querySelector('span').textContent = c.name;
+      b.addEventListener('click', () => { msgTo = i; store.set('msgTo', i); drawMsgs(); });
+      longPress(b, () => editContact(i));
+      row.appendChild(b);
+    });
+    const add = document.createElement('button'); add.className = 'cchip add';
+    add.innerHTML = '<i>+</i><span>Añadir</span>';
+    add.addEventListener('click', () => editContact(null));
+    row.appendChild(add);
+    box.appendChild(row);
+    const h2 = document.createElement('h3'); h2.textContent = 'Mensaje (toca uno para abrir WhatsApp)'; box.appendChild(h2);
+    const g = document.createElement('div'); g.className = 'mgrid';
+    q.msgs.forEach((m, i) => {
+      const b = document.createElement('button'); b.className = 'mbtn';
+      b.textContent = m.replace(LOC_RX, '').trim() + (hasLoc(m) ? ' (+ tu ubicación)' : '');
+      b.addEventListener('click', () => sendQuick(m));
+      longPress(b, () => editMsg(i));
+      g.appendChild(b);
+    });
+    const am = document.createElement('button'); am.className = 'mbtn add'; am.textContent = '+ Nuevo mensaje';
+    am.addEventListener('click', () => editMsg(null));
+    g.appendChild(am);
+    box.appendChild(g);
+    const tip = document.createElement('div'); tip.className = 'muted wtip';
+    tip.textContent = 'Se abre WhatsApp con el texto ya escrito: solo toca Enviar. Mantén pulsado un contacto o un mensaje para cambiarlo.';
+    box.appendChild(tip);
+  }
+  function sendQuick(m) {
+    const c = cfg.quick.contacts[msgTo];
+    if (!c) { toast('Primero añade un contacto'); editContact(null); return; }
+    if (hasLoc(m) && !loc) toast('Aún no sé dónde estás: el mensaje va sin ubicación');
+    if (A.whatsapp(normPhone(c.phone), fillMsg(m))) { $('msgs').classList.add('hide'); toast('Toca Enviar en WhatsApp'); }
+    else toast('No encuentro WhatsApp en esta pantalla');
+  }
+
+  // =====================================================================
+  //  RUTINAS AL ARRANCAR
+  //  Al encender el coche (o al encender la pantalla tras 10 min apagada) se hace la primera rutina
+  //  que coincida con el día y la hora. Antes sale un aviso de 5 s para poder cancelarla.
+  // =====================================================================
+  const DAYS = [[1, 'L'], [2, 'M'], [3, 'X'], [4, 'J'], [5, 'V'], [6, 'S'], [0, 'D']];
+  const hm = (t) => { const m = String(t || '').match(/(\d{1,2}):(\d{2})/); return m ? (+m[1]) * 60 + (+m[2]) : 0; };
+  function daysText(d) {
+    const ds = (d || []).slice().sort();
+    if (ds.length === 7) return 'Todos los días';
+    if (ds.join() === '1,2,3,4,5') return 'De lunes a viernes';
+    if (ds.join() === '0,6') return 'Fines de semana';
+    return DAYS.filter(([n]) => ds.includes(n)).map(([, l]) => l).join(' ') || 'Ningún día';
+  }
+  function actText(a) {
+    switch (a.t) {
+      case 'radio': return '📻 Pro Radio (última emisora)';
+      case 'station': return '📻 Pro Radio: ' + (a.name || 'memoria');
+      case 'other': return '🎵 Seguir con la última música (Deezer, YouTube…)';
+      case 'app': return '📱 Abrir ' + labelOf(a.item);
+      case 'nav': return '🧭 Ir a ' + (a.name || 'un sitio');
+      default: return '';
+    }
+  }
+  function routineSummary(r) {
+    return daysText(r.days) + ' · ' + (r.allDay ? 'todo el día' : r.from + '–' + r.to) + ' · ' + (r.actions.length ? r.actions.map(actText).join(', ') : 'sin acciones');
+  }
+  function matches(r, d) {
+    if (!r.on || !r.actions.length || !(r.days || []).includes(d.getDay())) return false;
+    if (r.allDay) return true;
+    const n = d.getHours() * 60 + d.getMinutes(), a = hm(r.from), b = hm(r.to);
+    return a <= b ? (n >= a && n < b) : (n >= a || n < b); // si «desde» es mayor que «hasta», cruza la medianoche
+  }
+  let rtTimer = 0, rtCount = 0;
+  function startRoutine(r, now) {
+    clearInterval(rtTimer);
+    if (now) { $('rtBanner').classList.add('hide'); runRoutine(r); return; }
+    rtCount = 5;
+    const show = () => { $('rtText').textContent = '🚗 Rutina «' + r.name + '» en ' + rtCount + ' s'; $('rtSub').textContent = r.actions.map(actText).join(' · '); };
+    show();
+    $('rtBanner').classList.remove('hide');
+    $('rtCancel').onclick = () => { clearInterval(rtTimer); $('rtBanner').classList.add('hide'); toast('Rutina cancelada'); };
+    $('rtNow').onclick = () => startRoutine(r, true);
+    rtTimer = setInterval(() => {
+      rtCount--;
+      if (rtCount <= 0) { clearInterval(rtTimer); $('rtBanner').classList.add('hide'); runRoutine(r); } else show();
+    }, 1000);
+  }
+  function runRoutine(r) {
+    const music = r.actions.filter((a) => a.t === 'radio' || a.t === 'station' || a.t === 'other');
+    const opens = r.actions.filter((a) => a.t === 'app' || a.t === 'nav');
+    music.forEach((a) => {
+      if (a.t === 'radio') A.playRadio();
+      else if (a.t === 'station') A.radioStation(a.id);
+      else A.resumeOther();
+    });
+    // La app o el destino, un poco después (para que la música ya esté arrancando)
+    opens.forEach((a, i) => setTimeout(() => {
+      if (a.t === 'app') runItem(a.item);
+      else if (!A.navTo(navPkg(), a.lat, a.lon, a.name)) toast('No se pudo abrir el navegador');
+    }, (music.length ? 1800 : 300) + i * 1500));
+    toast('🚗 ' + r.name);
+  }
+  function onStart() {
+    const d = new Date(), r = cfg.routines.find((x) => matches(x, d));
+    if (!r) return;
+    if (Date.now() - store.get('rtLast', 0) < 10 * 60 * 1000) return;
+    store.set('rtLast', Date.now());
+    closeSheets();
+    startRoutine(r, false);
+  }
+
+  // ---------- Editor de una rutina ----------
+  let rtEdit = null, rtIndex = -1, stationsCb = null;
+  function editRoutine(i) {
+    rtIndex = i == null ? -1 : i;
+    rtEdit = i == null ? { name: 'Ir al trabajo', on: true, days: [1, 2, 3, 4, 5], from: '07:00', to: '10:00', allDay: false, actions: [] }
+      : JSON.parse(JSON.stringify(cfg.routines[i]));
+    drawRoutine();
+    $('rutina').classList.remove('hide');
+  }
+  function drawRoutine() {
+    const r = rtEdit, o = $('rtOpts');
+    o.innerHTML = '';
+    const sec = (t) => { const h = document.createElement('h3'); h.textContent = t; o.appendChild(h); };
+    sec('Nombre');
+    const nm = document.createElement('input'); nm.className = 'tin'; nm.value = r.name; nm.maxLength = 40;
+    nm.addEventListener('input', () => { r.name = nm.value; });
+    o.appendChild(nm);
+    sec('Días');
+    const dd = document.createElement('div'); dd.className = 'seg days';
+    DAYS.forEach(([n, l]) => {
+      const b = document.createElement('button'); b.textContent = l; b.className = r.days.includes(n) ? 'on' : '';
+      b.addEventListener('click', () => { r.days = r.days.includes(n) ? r.days.filter((x) => x !== n) : r.days.concat([n]); drawRoutine(); });
+      dd.appendChild(b);
+    });
+    o.appendChild(dd);
+    sec('Horario');
+    const hr = document.createElement('div'); hr.className = 'hrow';
+    hr.innerHTML = '<label>Desde <input type="time" class="tin"></label><label>Hasta <input type="time" class="tin"></label><button class="obtn ghost"></button>';
+    const [f, t] = hr.querySelectorAll('input');
+    f.value = r.from; t.value = r.to;
+    f.disabled = t.disabled = r.allDay;
+    f.addEventListener('change', () => { r.from = f.value || '00:00'; });
+    t.addEventListener('change', () => { r.to = t.value || '23:59'; });
+    const ad = hr.querySelector('button');
+    ad.textContent = r.allDay ? '✔ Todo el día' : 'Todo el día';
+    if (r.allDay) ad.classList.remove('ghost');
+    ad.addEventListener('click', () => { r.allDay = !r.allDay; drawRoutine(); });
+    o.appendChild(hr);
+    sec('Qué hacer al arrancar');
+    if (!r.actions.length) { const e = document.createElement('div'); e.className = 'muted'; e.style.padding = '4px'; e.textContent = 'Aún no hay acciones: añade una.'; o.appendChild(e); }
+    r.actions.forEach((a, i) => {
+      const d = document.createElement('div'); d.className = 'opt';
+      d.innerHTML = '<div><b></b></div><button class="obtn ghost">Quitar</button>';
+      d.querySelector('b').textContent = (i + 1) + '. ' + actText(a);
+      d.querySelector('button').addEventListener('click', () => { r.actions.splice(i, 1); drawRoutine(); });
+      o.appendChild(d);
+    });
+    const addB = document.createElement('button'); addB.className = 'obtn addact'; addB.textContent = '+ Añadir acción';
+    addB.addEventListener('click', addAction);
+    o.appendChild(addB);
+    const tip = document.createElement('div'); tip.className = 'muted wtip';
+    tip.textContent = 'Una acción de música y una de abrir (app o sitio). La música arranca primero. Si hay varias rutinas, se hace la primera que coincida con el día y la hora.';
+    o.appendChild(tip);
+    $('rtDel').classList.toggle('hide', rtIndex < 0);
+  }
+  function addAction() {
+    const r = rtEdit;
+    const setMusic = (a) => { r.actions = r.actions.filter((x) => !['radio', 'station', 'other'].includes(x.t)); r.actions.unshift(a); drawRoutine(); };
+    const setOpen = (a) => { r.actions = r.actions.filter((x) => !['app', 'nav'].includes(x.t)); r.actions.push(a); drawRoutine(); };
+    menu('Añadir acción', [
+      ['📻  Pro Radio: la última emisora', () => setMusic({ t: 'radio' })],
+      ['📻  Pro Radio: una memoria', () => {
+        stationsCb = (l) => {
+          if (!l.length) { toast('No veo tus memorias: abre Pro Radio una vez y vuelve a probar'); return; }
+          menu('Memoria de Pro Radio', l.map((x) => [x.name, () => setMusic({ t: 'station', id: x.id, name: x.name })]));
+        };
+        toast('Buscando tus memorias…'); A.radioStations();
+      }],
+      ['🎵  Seguir con la última música (Deezer, YouTube…)', () => setMusic({ t: 'other' })],
+      ['🧭  Ir a un sitio (con ' + navLabel() + ')', () => pickPlace((p) => setOpen({ t: 'nav', name: p.name, lat: p.lat, lon: p.lon }))],
+      ['📱  Abrir una app', () => pick({ title: 'App que se abre al arrancar', acts: false }, (x) => setOpen({ t: 'app', item: x }))]
+    ]);
+  }
+
+  // ---------- Elegir un sitio (buscador gratis Photon, de OpenStreetMap) ----------
+  let placeCb = null;
+  function pickPlace(cb) {
+    placeCb = cb;
+    $('lugarQ').value = '';
+    $('lugar').classList.remove('hide');
+    drawPlaces(null);
+    setTimeout(() => $('lugarQ').focus(), 150);
+  }
+  function drawPlaces(list) {
+    const box = $('lugarList');
+    box.innerHTML = '';
+    const item = (t, sub, fn) => {
+      const b = document.createElement('button'); b.className = 'opt pl';
+      b.innerHTML = '<div><b></b><small></small></div>';
+      b.querySelector('b').textContent = t; b.querySelector('small').textContent = sub || '';
+      b.addEventListener('click', fn); box.appendChild(b);
+    };
+    if (loc) item('📍 Donde estoy ahora', 'Guarda este sitio con un nombre', () => {
+      form('Nombre del sitio', [{ key: 'n', label: 'Nombre', value: '', ph: 'Ej.: Trabajo, Casa de mis padres' }], (v) => {
+        choosePlace({ name: v.n || 'Mi sitio', lat: loc.lat, lon: loc.lon });
+      });
+    });
+    const msg = (t) => { const e = document.createElement('div'); e.className = 'empty'; e.textContent = t; box.appendChild(e); };
+    if (list === 'busy') { msg('Buscando…'); return; }
+    if (list && !list.length) { msg('No he encontrado nada. Prueba con calle, número y ciudad.'); return; }
+    (list || []).forEach((p) => item(p.name, p.sub, () => choosePlace(p)));
+  }
+  function choosePlace(p) { $('lugar').classList.add('hide'); const cb = placeCb; placeCb = null; if (cb) cb(p); }
+  async function searchPlaces() {
+    const q = $('lugarQ').value.trim();
+    if (q.length < 3) { toast('Escribe la dirección o el nombre del sitio'); return; }
+    drawPlaces('busy');
+    try {
+      const u = 'https://photon.komoot.io/api/?limit=8&q=' + encodeURIComponent(q) + (loc ? '&lat=' + loc.lat.toFixed(3) + '&lon=' + loc.lon.toFixed(3) : '');
+      const j = JSON.parse(await get(u));
+      drawPlaces((j.features || []).map((f) => {
+        const pr = f.properties || {}, c = (f.geometry || {}).coordinates || [0, 0];
+        const street = [pr.street, pr.housenumber].filter(Boolean).join(' ');
+        const name = pr.name || street || pr.city || q;
+        const sub = [pr.name ? street : '', pr.postcode, pr.city || pr.county, pr.state].filter(Boolean).join(', ');
+        return { name, sub, lat: c[1], lon: c[0] };
+      }));
+    } catch (e) { drawPlaces([]); toast('Sin internet para buscar'); }
+  }
+  $('lugarGo').addEventListener('click', searchPlaces);
+  $('lugarQ').addEventListener('keydown', (e) => { if (e.key === 'Enter') searchPlaces(); });
+
+  $('rtSave').addEventListener('click', () => {
+    const r = rtEdit;
+    r.name = (r.name || '').trim() || 'Rutina';
+    if (!r.days.length) { toast('Elige al menos un día'); return; }
+    if (rtIndex < 0) cfg.routines.push(r); else cfg.routines[rtIndex] = r;
+    save(); $('rutina').classList.add('hide'); renderOpts();
+    toast('Rutina «' + r.name + '» guardada');
+  });
+  $('rtTest').addEventListener('click', () => { if (!rtEdit.actions.length) { toast('Añade alguna acción'); return; } startRoutine(rtEdit, false); });
+  $('rtDel').addEventListener('click', () => menu('¿Borrar la rutina «' + rtEdit.name + '»?', [['Sí, borrar', () => {
+    cfg.routines.splice(rtIndex, 1); save(); $('rutina').classList.add('hide'); renderOpts();
+  }, 'red']]));
+
+  // =====================================================================
   //  PERSONALIZAR
   // =====================================================================
   function openSettings() { closeSheets(); renderOpts(); $('ajustes').classList.remove('hide'); $('opts').scrollTop = 0; }
@@ -1080,9 +1428,31 @@
     row('Icono de la conexión', '', sw(cfg.st.net, (v) => { cfg.st.net = v; save(); drawLayout(); }));
     row('Tiempo', '', sw(cfg.st.wx, (v) => { cfg.st.wx = v; save(); drawLayout(); }));
 
+    // --- Rutinas
+    h3('Rutinas al arrancar');
+    const rtInfo = document.createElement('div'); rtInfo.className = 'muted'; rtInfo.style.padding = '0 4px';
+    rtInfo.textContent = 'Al encender el coche (o la pantalla tras 10 min apagada) se hace la primera rutina que coincida con el día y la hora. Antes sale un aviso de 5 s para cancelarla. Son de esta pantalla: hazlas en la del coche.';
+    o.appendChild(rtInfo);
+    cfg.routines.forEach((r, i) => {
+      const d = row(r.name, routineSummary(r), sw(r.on, (v) => { r.on = v; save(); }));
+      d.classList.add('click');
+      d.firstChild.addEventListener('click', () => editRoutine(i));
+    });
+    row(cfg.routines.length ? 'Otra rutina' : 'Crear una rutina', 'Ej.: entre semana de 7 a 10, Pro Radio y Pro Maps al trabajo', btn('+ Nueva', () => editRoutine(null)));
+
+    // --- Mensajes rápidos
+    h3('Mensajes rápidos (WhatsApp)');
+    cfg.quick.contacts.forEach((c, i) => row('👤 ' + c.name, c.phone, btn('Cambiar', () => editContact(i), 'ghost')));
+    row(cfg.quick.contacts.length ? 'Otro contacto' : 'Añadir un contacto', 'A quién mandas los mensajes (nombre y número)', btn('+ Contacto', () => editContact(null)));
+    cfg.quick.msgs.forEach((m, i) => row('💬 ' + m, '', btn('Cambiar', () => editMsg(i), 'ghost')));
+    row('Otro mensaje', 'Escribe {ubicacion} para mandar dónde estás', btn('+ Mensaje', () => editMsg(null)));
+    const qt = document.createElement('div'); qt.className = 'muted'; qt.style.padding = '0 4px';
+    qt.textContent = 'Se abren con el botón «Mensajes» (barra o cuadro de apps). Los contactos y mensajes se copian al otro aparato con el Código Pro: escríbelos en el móvil.';
+    o.appendChild(qt);
+
     // --- Sistema
     h3('Móvil y coche');
-    if (window.PS) o.appendChild(PS.box({ toast, what: 'el tema de colores, los botones de apps (barra y cuadro) y el navegador elegido. La colocación del mapa y las tarjetas queda a tu gusto en cada pantalla.' }));
+    if (window.PS) o.appendChild(PS.box({ toast, what: 'el tema de colores, los botones de apps (barra y cuadro), el navegador elegido y los mensajes rápidos. La colocación del mapa, las tarjetas, los widgets y las rutinas queda a tu gusto en cada pantalla.' }));
     h3('Sistema');
     const home = A.isHome();
     const hr = row('Pantalla de inicio', home ? '✔ Pro Inicio es la pantalla de inicio' : 'Que el botón «casa» abra Pro Inicio',
@@ -1166,6 +1536,8 @@
       }
     },
     widgetMenu(slot) { widgetMenu(slot); },
+    onStart(kind) { onStart(kind); },
+    onStations(l) { const cb = stationsCb; stationsCb = null; if (cb) cb(l || []); },
     widgetGone(slot) { delete cfg.widgets[slot]; save(); drawWidgets(); toast('La app del widget se ha desinstalado'); },
     appsChanged() { apps = null; drawGrid(); if (!$('picker').classList.contains('hide')) A.allApps(); },
     onUpdate(u) {
@@ -1185,7 +1557,10 @@
     },
     back() {
       if (!$('upd').classList.contains('hide')) $('upd').classList.add('hide');
+      else if (!$('form').classList.contains('hide')) $('form').classList.add('hide');
       else if (!$('menu').classList.contains('hide')) $('menu').classList.add('hide');
+      else if (!$('lugar').classList.contains('hide')) $('lugar').classList.add('hide');
+      else if (!$('rutina').classList.contains('hide')) $('rutina').classList.add('hide');
       else if (!$('picker').classList.contains('hide')) $('picker').classList.add('hide');
       else closeSheets();
     },
