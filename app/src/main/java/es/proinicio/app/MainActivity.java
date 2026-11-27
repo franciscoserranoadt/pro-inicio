@@ -173,6 +173,10 @@ public class MainActivity extends Activity {
             handler.postDelayed(() -> checkUpdate(false), 4000);
         }
         js("PI.onResume && PI.onResume()");
+        if (winWentFull) {
+            winWentFull = false;
+            handler.postDelayed(() -> js("PI.onCard && PI.onCard('winfull')"), 600);
+        }
     }
 
     @Override
@@ -192,6 +196,9 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onStop() {
+        // Si justo después de abrir el navegador «en la tarjeta» Pro Inicio queda tapada entera,
+        // es que la pantalla lo abrió a pantalla completa (no admite ventanas libres)
+        if (System.currentTimeMillis() - winLaunchAt < 4000) winWentFull = true;
         visible = false;
         releaseRadio();
         stopLocation();
@@ -510,6 +517,24 @@ public class MainActivity extends Activity {
         }
     }
 
+    private long winLaunchAt = 0;
+    private boolean winWentFull = false;
+
+    /** Pide «ventana libre» (WINDOWING_MODE_FREEFORM = 5). Es una función oculta: se desbloquea con HiddenApiBypass. */
+    private void setFreeform(android.app.ActivityOptions o) {
+        try {
+            if (Build.VERSION.SDK_INT >= 28) org.lsposed.hiddenapibypass.HiddenApiBypass.addHiddenApiExemptions("Landroid/app/ActivityOptions;");
+        } catch (Throwable ignored) { }
+        try {
+            java.lang.reflect.Method m = android.app.ActivityOptions.class.getMethod("setLaunchWindowingMode", int.class);
+            m.invoke(o, 5);
+            return;
+        } catch (Throwable ignored) { }
+        try {
+            if (Build.VERSION.SDK_INT >= 28) org.lsposed.hiddenapibypass.HiddenApiBypass.invoke(android.app.ActivityOptions.class, o, "setLaunchWindowingMode", 5);
+        } catch (Throwable ignored) { }
+    }
+
     /** ¿Permite este aparato ventanas libres (formato libre)? */
     private boolean freeformOk() {
         try {
@@ -535,10 +560,8 @@ public class MainActivity extends Activity {
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             android.app.ActivityOptions o = android.app.ActivityOptions.makeBasic();
             o.setLaunchBounds(new android.graphics.Rect(cardRect[0], cardRect[1], cardRect[0] + cardRect[2], cardRect[1] + cardRect[3]));
-            try {
-                java.lang.reflect.Method m = android.app.ActivityOptions.class.getMethod("setLaunchWindowingMode", int.class);
-                m.invoke(o, 5); // 5 = ventana libre (freeform)
-            } catch (Throwable ignored) { }
+            setFreeform(o);
+            winLaunchAt = System.currentTimeMillis();
             startActivity(i, o.toBundle());
             return true;
         } catch (Exception e) {

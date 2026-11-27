@@ -1,2 +1,2 @@
-• Arreglado: en Personalizar, «Cambiar» (navegador y botones) no hacía nada; la lista de apps quedaba escondida detrás
-• La lista para elegir app se ve mejor en el móvil en vertical
+• «Abrir … aquí»: ahora pide de verdad a Android que abra el navegador en una ventana encima de la tarjeta
+• Si la pantalla lo abre a pantalla completa, Pro Inicio te avisa y te explica qué activar

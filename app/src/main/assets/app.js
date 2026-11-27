@@ -619,8 +619,14 @@
     const name = navLabel();
     if (!A.freeform()) {
       cardMsg(name + ' en la tarjeta',
-        'Tu pantalla tiene que permitir «ventanas libres» (solo una vez):\n1) Ajustes > Información > toca 7 veces «Número de compilación».\n2) Ajustes > Sistema > Opciones de desarrollador > activa «Habilitar ventanas de formato libre».\n3) Reinicia la pantalla.',
+        'Tu pantalla tiene que permitir «ventanas libres» (solo una vez):\n1) Ajustes > Información > toca 7 veces «Número de compilación».\n2) Ajustes > Sistema > Opciones de desarrollador > activa «Habilitar ventanas de formato libre» y «Forzar el redimensionamiento de las actividades».\n3) Reinicia la pantalla.',
         [['Abrir opciones de desarrollador', () => A.devSettings()], ['Abrir ' + name, () => runItem(cfg.nav), 'ghost'], ownMap]);
+      return;
+    }
+    if (cardState === 'winfull') {
+      cardMsg(name + ' se abrió a pantalla completa',
+        'Esta pantalla no deja abrir otras apps en ventana. Prueba esto:\n1) Ajustes > Sistema > Opciones de desarrollador: activa «Habilitar ventanas de formato libre» y «Forzar el redimensionamiento de las actividades».\n2) Reinicia y vuelve a probar.\nSi sigue igual, tu pantalla no lo permite: usa Pro Maps, que sí va dentro de la tarjeta.',
+        [['Probar otra vez', () => { cardState = ''; openNavWindow(); }], ['Opciones de desarrollador', () => A.devSettings(), 'ghost'], ownMap]);
       return;
     }
     cardMsg(name, 'Se abre en una ventana encima de esta tarjeta. Puedes usarla con normalidad.',
