@@ -889,6 +889,7 @@ public class MainActivity extends Activity {
             for (ResolveInfo r : pm.queryIntentActivities(main, 0)) {
                 String p = r.activityInfo.packageName;
                 if (p.equals(getPackageName()) || p.startsWith("com.android.settings")) continue;
+                if (p.contains("projection.gearhead") || p.contains("androidauto")) continue; // Android Auto no es el teléfono
                 String label = String.valueOf(r.loadLabel(pm));
                 if (!label.matches(PHONE_RX) && !p.matches("(?i).*(dialer|\\.bt\\b|bluetooth|btphone|\\.phone).*")) continue;
                 int score = label.matches("(?i).*(tel[eé]fono|phone|marcador|dialer).*") ? 3 : 1;
@@ -897,14 +898,8 @@ public class MainActivity extends Activity {
             }
             if (best != null && openComponent(best.activityInfo.packageName, best.activityInfo.name)) return best.activityInfo.packageName;
         } catch (Exception ignored) { }
-        try {
-            Intent i = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:"));
-            if (i.resolveActivity(pm) != null) {
-                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(i);
-                return "dial";
-            }
-        } catch (Exception ignored) { }
+        // No se usa el marcador «por defecto» de Android: en la Junsun abre los ajustes de Android Auto.
+        // Si no se encuentra la app, Pro Inicio pregunta cuál es (y la recuerda).
         return "";
     }
 

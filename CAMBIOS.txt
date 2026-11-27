@@ -1,2 +1,1 @@
-Arreglado el aviso naranja «Demasiados envíos hoy» del Código Pro: Pro Inicio mandaba los iconos de las apps (imágenes grandes) en cada sincronización y gastaba el cupo diario del servicio gratuito. Ahora solo viaja la lista de apps y cada aparato pone sus propios iconos.
-Si el servicio vuelve a decir «demasiados envíos», ahora espera 1 hora en vez de reintentarlo cada 2 minutos.
+• Botón Teléfono: ya no abre los ajustes de Android Auto. Si no encuentra la app de llamadas Bluetooth, te pregunta cuál es una vez y la recuerda
