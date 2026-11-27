@@ -85,7 +85,7 @@ El botón «atrás» no sale de la app (es la pantalla de inicio): solo cierra p
 Java, con una sola librería: `androidx.media3:media3-session` (para hablar con Pro Radio).
 
 ## 5. Historial
-- **1.0.16** Mensajes rápidos por WhatsApp (botón «Mensajes», contactos y textos sincronizados con el Código Pro, `{ubicacion}`) y rutinas al arrancar (BootReceiver con `pi_boot`, o pantalla encendida tras 10 min apagada; aviso de 5 s; Pro Radio/memoria, otra música, app o destino por `geo:` a Pro Maps).
+- **1.0.18** Mensajes rápidos por WhatsApp (botón «Mensajes», contactos y textos sincronizados con el Código Pro, `{ubicacion}`) y rutinas al arrancar (BootReceiver con `pi_boot`, o pantalla encendida tras 10 min apagada; aviso de 5 s; Pro Radio/memoria, otra música, app o destino por `geo:` a Pro Maps).
 - **1.0.17** Botón Teléfono: ya no abre los ajustes de Android Auto (sin marcador genérico; Android Auto excluido de la búsqueda). Si no encuentra la app de llamadas Bluetooth, pregunta cuál es.
 - **1.0.15** Tarjeta Widget, botones universales de música (Deezer, YouTube…) y botón Teléfono arreglado. Publicada el 27-nov; falta probarla en la Junsun.
 - **1.0.14** Código Pro: tema, botones de apps y navegador iguales en el móvil y el coche, cifrado.
