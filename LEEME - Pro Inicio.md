@@ -77,7 +77,7 @@ Java, con una sola librería: `androidx.media3:media3-session` (para hablar con 
 
 ## 5. Historial
 - **1.0.1** Primera versión.
-- **1.0.8** Ventana libre con HiddenApiBypass (setLaunchWindowingMode es una función oculta de Android) y aviso si se abre a pantalla completa.
+- **1.0.9** (la 1.0.8 no compiló) Ventana libre con HiddenApiBypass 4.3 (setLaunchWindowingMode es una función oculta de Android) y aviso si se abre a pantalla completa.
 - **1.0.7** Arreglado «Cambiar» en Personalizar (la lista de apps quedaba detrás).
 - **1.0.6** Navegador de verdad en la tarjeta del mapa (Pro Maps en modo tarjeta; otros en ventana libre, de prueba).
 - **1.0.5** Todo configurable (barra lateral, tarjetas, cuadro de apps, mapa, barra de arriba), 22 temas, navegador a elegir, tarjetas Tiempo/Reloj/Velocidad.
