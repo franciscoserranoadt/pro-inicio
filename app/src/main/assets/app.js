@@ -132,7 +132,7 @@
     nav: { t: 'pro', id: 'maps' },
     map: true, mapMode: 'nav', mapStyle: 'auto', b3d: true, street: true, speed: true, mapBtns: true,
     side: 'right', top: 'music', bottom: 'apps',
-    rail: true,
+    rail: true, railPos: 'top',
     railItems: [{ t: 'act', id: 'home' }, { t: 'act', id: 'nav' }, { t: 'pro', id: 'radio' }, { t: 'act', id: 'phone' },
       { t: 'act', id: 'apps' }, { t: 'act', id: 'settings' }, { t: 'pro', id: 'obd' }],
     grid: [{ t: 'pro', id: 'maps' }, { t: 'pro', id: 'radio' }, { t: 'pro', id: 'obd' }, { t: 'pro', id: 'garaje' },
@@ -247,16 +247,19 @@
   //  DIBUJAR LA PANTALLA SEGÚN LA CONFIGURACIÓN
   // =====================================================================
   function drawRail() {
-    const r = $('rail');
-    r.innerHTML = '';
-    cfg.railItems.forEach((it, i) => {
-      const b = document.createElement('button');
-      b.className = 'rb' + (it.t === 'act' && it.id === 'home' ? ' on' : '');
-      b.setAttribute('aria-label', labelOf(it));
-      b.innerHTML = railHtml(it);
-      b.addEventListener('click', () => runItem(it));
-      longPress(b, () => listMenu('railItems', i, drawAll));
-      r.appendChild(b);
+    // Los mismos botones en la barra lateral y arriba (según «Posición de los botones» y la orientación se ve una u otra)
+    ['rail', 'topRail'].forEach((id) => {
+      const r = $(id);
+      r.innerHTML = '';
+      cfg.railItems.forEach((it, i) => {
+        const b = document.createElement('button');
+        b.className = 'rb' + (it.t === 'act' && it.id === 'home' ? ' on' : '');
+        b.setAttribute('aria-label', labelOf(it));
+        b.innerHTML = railHtml(it);
+        b.addEventListener('click', () => runItem(it));
+        longPress(b, () => listMenu('railItems', i, drawAll));
+        r.appendChild(b);
+      });
     });
   }
 
@@ -286,7 +289,10 @@
     side.classList.toggle('one', cards.length === 1);
     app.classList.toggle('noSide', cards.length === 0);
     app.classList.toggle('sideLeft', cfg.side === 'left');
-    app.classList.toggle('noRail', !cfg.rail);
+    const top = cfg.rail && cfg.railPos === 'top';
+    app.classList.toggle('railTop', top);
+    app.classList.toggle('noRail', !cfg.rail || top);
+    $('topRail').classList.toggle('hide', !top);
     app.classList.toggle('noMap', !cfg.map);
     $('rail').classList.toggle('hide', !cfg.rail);
     $('mapCard').classList.toggle('hide', !cfg.map);
@@ -310,7 +316,7 @@
   function drawAll() { applyTheme(); drawRail(); drawGrid(); drawLayout(); applyMapStyle(); }
 
   // Ajustes siempre a mano: mantener pulsada la hora
-  longPress($('status'), openSettings);
+  longPress(document.querySelector('.sleft'), openSettings);
 
   // ---------- Hora y fecha ----------
   const fmtFecha = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -879,8 +885,9 @@
     row('Lado de las tarjetas', 'En horizontal', seg({ right: 'Derecha', left: 'Izquierda' }, cfg.side, (v) => set('side', v)));
 
     // --- Barra lateral
-    h3('Barra lateral');
-    row('Mostrar la barra lateral', 'Toca un botón para cambiarlo, moverlo o quitarlo', sw(cfg.rail, (v) => set('rail', v)));
+    h3('Botones (barra lateral o de arriba)');
+    row('Mostrar los botones', 'Toca un botón de abajo para cambiarlo, moverlo o quitarlo', sw(cfg.rail, (v) => set('rail', v)));
+    row('Posición de los botones', 'Arriba dejan más sitio al mapa (en el móvil en vertical van abajo)', seg({ top: 'Arriba', left: 'Izquierda' }, cfg.railPos, (v) => set('railPos', v)));
     slots('railItems', drawAll, 8);
 
     // --- Cuadro de apps

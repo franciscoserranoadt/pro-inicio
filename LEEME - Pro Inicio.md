@@ -15,7 +15,7 @@ Diseño tipo «pantalla de coche» (pedido el 27-nov a partir de una imagen esti
 | Zona | Qué hay | Se puede cambiar |
 |---|---|---|
 | **Barra de arriba** | Hora, fecha, GPS, conexión (wifi / 4G / sin red), tiempo | Mostrar u ocultar cada cosa. Mantener pulsada abre Personalizar. |
-| **Barra lateral** | De serie: Inicio · Navegar · Pro Radio · Teléfono · Todas las apps · Personalizar · Pro OBD | Cada botón (hasta 8): cualquier app, app Pro o botón especial; mover, quitar, ocultar la barra. En vertical va abajo. |
+| **Botones** (arriba, en la barra de estado; o a la izquierda) | De serie: Inicio · Navegar · Pro Radio · Teléfono · Todas las apps · Personalizar · Pro OBD | Cada botón (hasta 8): cualquier app, app Pro o botón especial; mover, quitar, ocultar la barra. En vertical va abajo. |
 | **Mapa** | El navegador de verdad (Pro Maps encajada, u otro en ventana libre) o el mapa propio: mapa en directo (MapLibre + OpenFreeMap, mismos estilos que Pro Maps), edificios 3D, flecha con tu posición, tarjeta de la calle, velocidad, + − centrar | Navegador que se abre al tocarlo (Pro Maps de serie, o cualquier app: Waze, Google Maps…), estilo (Auto/Oscuro/Claro/Suave), 3D, cada tarjeta y botón, o quitar el mapa entero. |
 | **2 tarjetas** | De serie: Música (Pro Radio) arriba y Apps abajo | Cada una puede ser Música, Apps, Tiempo (ahora + 5 horas), Reloj, Velocidad o Nada; a la derecha o a la izquierda. |
 | **Cuadro de apps** | Pro Maps, Pro Radio, Pro OBD, Pro Garaje, favoritas, Más apps, Añadir | Añadir, cambiar, mover y quitar cualquier botón. |
@@ -78,6 +78,7 @@ Java, con una sola librería: `androidx.media3:media3-session` (para hablar con 
 
 ## 5. Historial
 - **1.0.1** Primera versión.
+- **1.0.13** Botones de la barra lateral arriba, en la barra de estado (pedido el 27-nov para que el mapa ocupe más). Ajuste «Posición de los botones»: Arriba (de serie) / Izquierda. En vertical van abajo. La fecha se oculta en horizontal con los botones arriba. Mantener pulsada la hora abre Personalizar.
 - **1.0.12** Pro Maps 3.13 confirma «shown» al colocarse; Pro Inicio reintenta 2 veces si no llega en 6 s y luego ofrece «Reintentar». Confirmado el 27-nov: Pro Maps en la tarjeta funciona en el móvil y en la Junsun.
 - **1.0.11** Pro Maps elegida desde «Todas las apps» ahora también va en modo tarjeta (antes iba por ventana libre).
 - **1.0.10** Abre las opciones de desarrollador por varios caminos (Junsun las esconde) y muestra el estado de las ventanas libres. La Junsun V9 es Android 9 por dentro (compilación PKQ1, msm8953) aunque diga 13.

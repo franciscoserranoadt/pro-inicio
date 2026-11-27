@@ -243,3 +243,13 @@ svg { display: block; fill: currentColor; }
   #picker .sheethead { flex-wrap: wrap; }
   #picker .sheethead h2 { flex: 1 1 100%; white-space: normal; font-size: 22px; }
 }
+
+/* ---------- Botones arriba, en la barra de estado (más sitio para el mapa) ---------- */
+.toprail { display: none; }
+@media (orientation: landscape) {
+  #app.railTop #rail { display: none !important; }
+  #app.railTop .toprail { display: flex; align-items: center; gap: clamp(4px, 1vmin, 10px); flex: 1 1 auto; justify-content: center; min-width: 0; }
+  #app.railTop #fecha { display: none; }
+}
+.toprail .rb { width: clamp(40px, 7vmin, 56px); height: clamp(40px, 7vmin, 56px); max-height: none; aspect-ratio: auto; border-radius: 14px; flex: 0 0 auto; }
+.toprail .rb.on { box-shadow: 0 0 0 2px var(--glow), 0 0 14px var(--glow); }

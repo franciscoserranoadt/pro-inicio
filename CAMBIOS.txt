@@ -1,1 +1,3 @@
-• Tarjeta con Pro Maps: si Pro Maps no aparece, Pro Inicio lo reintenta sola y, si no, te da un botón «Reintentar» (necesita Pro Maps 3.13)
+• Los botones de la izquierda pasan a la barra de arriba (junto al GPS y el wifi): el mapa gana todo el lado izquierdo
+• Se puede volver a ponerlos a la izquierda: Personalizar → Botones → Posición → Izquierda
+• En el móvil en vertical siguen abajo
