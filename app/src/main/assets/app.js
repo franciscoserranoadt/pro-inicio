@@ -153,6 +153,7 @@
     cfg.st = Object.assign(d.st, cfg.st);
   }
   function save() { store.set('cfg', cfg); }
+  if (cfg.nav && cfg.nav.t === 'app' && cfg.nav.pkg === 'com.fserrano.promaps') cfg.nav = { t: 'pro', id: 'maps' };
   save();
 
   let installed = {};
@@ -521,7 +522,7 @@
   ]));
   function chooseNav() {
     pick({ title: 'Navegador de la tarjeta del mapa', acts: false }, (x) => {
-      cfg.nav = x; save(); cardState = ''; winOpenedOnce = false; drawLayout();
+      cfg.nav = isProMaps(x) ? { t: 'pro', id: 'maps' } : x; save(); cardState = ''; winOpenedOnce = false; drawLayout();
       if (!$('ajustes').classList.contains('hide')) renderOpts();
       toast('Navegador: ' + labelOf(x));
     });
@@ -567,9 +568,11 @@
   //  · Pro Maps: se dibuja encajada en la tarjeta (modo tarjeta de Pro Maps 3.11+)
   //  · Otro navegador: se abre en una «ventana libre» del tamaño de la tarjeta (si la pantalla lo permite)
   // =====================================================================
+  // Pro Maps cuenta como Pro Maps aunque se haya elegido desde «Todas las apps»
+  const isProMaps = (it) => !!it && ((it.t === 'pro' && it.id === 'maps') || (it.t === 'app' && it.pkg === PRO.maps.pkg));
   function cardKind() {
     if (!cfg.map || cfg.mapMode === 'own') return 'own';
-    return cfg.nav && cfg.nav.t === 'pro' && cfg.nav.id === 'maps' ? 'promaps' : 'window';
+    return isProMaps(cfg.nav) ? 'promaps' : 'window';
   }
   const navPkg = () => cfg.nav.t === 'pro' ? PRO[cfg.nav.id].pkg : cfg.nav.pkg;
   const navCls = () => cfg.nav.t === 'app' ? (cfg.nav.cls || '') : '';
@@ -638,7 +641,7 @@
     if (!winOpenedOnce) { winOpenedOnce = true; setTimeout(openNavWindow, 1500); }
   }
   function androidName(sdk) {
-    const m = { 23: '6', 24: '7', 25: '7.1', 26: '8', 27: '8.1', 28: '9', 29: '10', 30: '11', 31: '12', 32: '12L', 33: '13', 34: '14', 35: '15' };
+    const m = { 23: '6', 24: '7', 25: '7.1', 26: '8', 27: '8.1', 28: '9', 29: '10', 30: '11', 31: '12', 32: '12L', 33: '13', 34: '14', 35: '15', 36: '16', 37: '17' };
     return m[sdk] || ('SDK ' + sdk);
   }
   function openNavWindow() {

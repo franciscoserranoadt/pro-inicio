@@ -1,2 +1,1 @@
-• «Opciones de desarrollador»: Pro Inicio las abre directamente aunque la pantalla las esconda
-• La tarjeta del navegador muestra si tu pantalla tiene activadas las ventanas libres
+• Arreglado: si elegías Pro Maps desde «Todas las apps», la tarjeta intentaba abrirla en ventana libre en vez de encajarla
