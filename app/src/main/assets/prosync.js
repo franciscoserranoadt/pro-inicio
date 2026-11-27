@@ -58,6 +58,8 @@
     var o = subs[app];
     if (!code || !o || !N) return Promise.resolve(false);
     if (o.enabled && !o.enabled()) return Promise.resolve(false);
+    // Si ntfy dijo «demasiados envíos» (429), se espera 1 hora antes de volver a intentarlo (antes reintentaba cada 2 min y era peor)
+    if (now() < ls('block', 0)) { st.err = 'Demasiados envíos hoy: se reintentará más tarde'; emit(); return Promise.resolve(false); }
     var t = stamp(app);
     if (!t) { t = 1; setStamp(app, t); }
     var data;
@@ -73,6 +75,7 @@
         var m = JSON.stringify({ ps: 1, t: t, s: sig, i: i, n: n, d: txt.slice(i * CHUNK, (i + 1) * CHUNK) });
         return req('POST', url(app), m).then(function (r) {
           if (!r.ok) st.err = r.code === 429 ? 'Demasiados envíos hoy: se reintentará más tarde' : 'No se pudo enviar (error ' + r.code + ')';
+          if (r.code === 429) lss('block', now() + 3600e3);
           return r.ok;
         });
       });

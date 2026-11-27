@@ -1,3 +1,2 @@
-Nueva tarjeta «Widget»: pon en una tarjeta cualquier widget de tus apps (Deezer, Calendario, el tiempo…). Mantén pulsada una tarjeta → Cambiar por: Widget. Mantén pulsado el widget para cambiarlo o quitarlo.
-La tarjeta Música ahora también controla Deezer, YouTube y otras apps: si suenan, ⏮ ⏯ ⏭ van a esa app. Toca la parte de arriba para volver a Pro Radio.
-Arreglado el botón Teléfono: busca solo la app del teléfono (o «Bluetooth» en el coche). Si no la encuentra, te deja elegirla una vez. También en Personalizar → Sistema → App del teléfono.
+Arreglado el aviso naranja «Demasiados envíos hoy» del Código Pro: Pro Inicio mandaba los iconos de las apps (imágenes grandes) en cada sincronización y gastaba el cupo diario del servicio gratuito. Ahora solo viaja la lista de apps y cada aparato pone sus propios iconos.
+Si el servicio vuelve a decir «demasiados envíos», ahora espera 1 hora en vez de reintentarlo cada 2 minutos.

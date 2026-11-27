@@ -160,7 +160,16 @@
   // Se sincronizan el tema, los botones de apps (barra y cuadro) y el navegador elegido.
   // La colocación (mapa, tarjetas, lado…) queda distinta en cada pantalla.
   const SYNC_KEYS = ['theme', 'grid', 'railItems', 'nav'];
-  const syncPart = () => { const o = {}; SYNC_KEYS.forEach((k) => { o[k] = cfg[k]; }); return o; };
+  // Los iconos NO viajan: son imágenes grandes y llenaban ntfy (error 429). Cada aparato pone los suyos.
+  const noIcon = (it) => (it && it.t === 'app') ? { t: 'app', pkg: it.pkg, cls: it.cls, label: it.label } : it;
+  const syncPart = () => ({ theme: cfg.theme, grid: cfg.grid.map(noIcon), railItems: cfg.railItems.map(noIcon), nav: noIcon(cfg.nav) });
+  function withIcon(it) {
+    if (!it || it.t !== 'app' || it.icon) return it;
+    const mine = cfg.grid.concat(cfg.railItems, [cfg.nav]).find((x) => x && x.t === 'app' && x.pkg === it.pkg && x.icon);
+    let icon = mine ? mine.icon : '';
+    if (!icon) { try { icon = A.icon(it.pkg) || ''; } catch (e) { icon = ''; } }
+    return Object.assign({}, it, { icon });
+  }
   let lastSync = JSON.stringify(syncPart()), fromRemote = false;
   function save() {
     store.set('cfg', cfg);
@@ -358,7 +367,10 @@
     get: syncPart,
     apply(d) {
       fromRemote = true;
-      SYNC_KEYS.forEach((k) => { if (d && d[k] !== undefined) cfg[k] = d[k]; });
+      if (d && d.theme !== undefined) cfg.theme = d.theme;
+      if (d && Array.isArray(d.grid)) cfg.grid = d.grid.map(withIcon);
+      if (d && Array.isArray(d.railItems)) cfg.railItems = d.railItems.map(withIcon);
+      if (d && d.nav) cfg.nav = withIcon(d.nav);
       save(); fromRemote = false;
       drawAll();
       if (!$('ajustes').classList.contains('hide')) renderOpts();

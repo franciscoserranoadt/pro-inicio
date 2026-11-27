@@ -80,6 +80,7 @@ El botón «atrás» no sale de la app (es la pantalla de inicio): solo cierra p
 Java, con una sola librería: `androidx.media3:media3-session` (para hablar con Pro Radio).
 
 ## 5. Historial
+- **1.0.16** Código Pro: los iconos de las apps ya no viajan (llenaban ntfy y salía «Demasiados envíos hoy», error 429); cada aparato los pone con `Android.icon`. Tras un 429, `prosync.js` espera 1 h (`ps_block`) en vez de reintentar cada 2 min.
 - **1.0.15** Tarjeta «Widget» (widgets de Android de verdad: `AppWidgetHost` encima del hueco de la tarjeta; mantener pulsado = menú). Botones universales de música (teclas multimedia a Deezer/YouTube si suenan). Botón Teléfono arreglado: busca la app «Teléfono/Bluetooth», luego el marcador; si no, se elige y se guarda (`phonePkg`).
 - **1.0.14** Código Pro: tema, botones de apps y navegador iguales en el móvil y el coche, cifrado.
 - **1.0.1** Primera versión.
