@@ -19,16 +19,8 @@
     </div>
   </header>
 
-  <!-- Barra lateral -->
-  <nav id="rail">
-    <button class="rb on" data-act="home" aria-label="Inicio"><svg viewBox="0 0 24 24"><path d="M12 3 2.5 11h2.8v9.5h5.2v-6h3v6h5.2V11h2.8z"/></svg></button>
-    <button class="rb" data-act="maps" aria-label="Navegar"><svg viewBox="0 0 24 24"><path d="M21 3 3 10.5l7.6 2.9L13.5 21zm-4.4 4.4-4.2 9.2-1.5-4-4-1.5z"/></svg></button>
-    <button class="rb" data-act="radio" aria-label="Música"><svg viewBox="0 0 24 24"><path d="M9 4v10.6A3.5 3.5 0 1 0 11 18V8h8v6.6a3.5 3.5 0 1 0 2 3.4V4z"/></svg></button>
-    <button class="rb" data-act="phone" aria-label="Teléfono"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15.2 15.2 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></button>
-    <button class="rb" data-act="apps" aria-label="Todas las apps"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg></button>
-    <button class="rb" data-act="ajustes" aria-label="Ajustes"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.6 7.6 0 0 0-1.7-1L15 3.2h-4l-.3 2.7a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.3 2.7h4l.3-2.7c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
-    <button class="rb" data-act="obd" aria-label="Coche (Pro OBD)"><svg viewBox="0 0 24 24"><path d="M18.9 6a1.5 1.5 0 0 0-1.4-1h-11a1.5 1.5 0 0 0-1.4 1L3 12v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8zM6.5 16a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm11 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM5 11l1.5-4.5h11L19 11z"/></svg></button>
-  </nav>
+  <!-- Barra lateral (botones configurables) -->
+  <nav id="rail"></nav>
 
   <!-- Mapa en directo -->
   <section id="mapCard">
@@ -36,11 +28,11 @@
     <div id="mapOff" class="hide"><div>🗺️</div><b>Sin mapa</b><span>Aparecerá cuando haya internet</span></div>
     <button id="street" class="street">
       <svg viewBox="0 0 24 24"><path d="M12 3 5 13h4.5v8h5v-8H19z"/></svg>
-      <span class="stxt"><b id="streetName">¿A dónde vamos?</b><small id="streetSub">Toca para abrir Pro Maps</small></span>
+      <span class="stxt"><b id="streetName">¿A dónde vamos?</b><small id="streetSub">Toca para navegar</small></span>
     </button>
     <button id="speedCard" class="speed">
       <span class="spv"><b id="spd">--</b><small>km/h</small></span>
-      <span class="spi"><b id="cityName">Pro Maps</b><small id="hint">Navegar</small></span>
+      <span class="spi"><b id="cityName">Navegar</b><small id="hint">Toca para abrir</small></span>
     </button>
     <div class="mapbtns">
       <button id="zIn" class="mb" aria-label="Acercar"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg></button>
@@ -49,9 +41,9 @@
     </div>
   </section>
 
-  <!-- Columna derecha -->
+  <!-- Columna de tarjetas (configurables) -->
   <aside id="side">
-    <section id="player">
+    <section id="player" class="card hide">
       <div id="pTap" class="ptop">
         <div id="pArt" class="art"><span>PR</span></div>
         <div class="ptxt">
@@ -70,61 +62,49 @@
       </div>
     </section>
 
-    <section id="appsCard">
+    <section id="appsCard" class="card hide">
       <div id="appsGrid" class="grid"></div>
+    </section>
+
+    <section id="wxCard" class="card hide">
+      <div class="wxnow"><span id="wxIcon" class="wxi">·</span><div><b id="wxTemp">--°</b><small id="wxDesc">Tiempo</small></div></div>
+      <div id="wxHours" class="wxhours"></div>
+    </section>
+
+    <section id="clockCard" class="card hide">
+      <b id="bigHora">--:--</b><small id="bigFecha"></small>
+    </section>
+
+    <section id="spdBig" class="card hide">
+      <b id="spdBigV">--</b><small>km/h</small><span id="spdBigSt"></span>
     </section>
   </aside>
 </div>
 
-<!-- Cajón de todas las apps -->
-<div id="drawer" class="sheet hide">
+<!-- Elegir (app, acción, tarjeta…) -->
+<div id="picker" class="sheet hide">
   <div class="sheethead">
-    <h2 id="drawerTitle">Todas las apps</h2>
+    <h2 id="pickTitle">Elegir</h2>
     <input id="buscar" type="search" placeholder="Buscar app…" autocomplete="off">
-    <button class="close" data-close="drawer" aria-label="Cerrar">✕</button>
+    <button class="close" data-close="picker" aria-label="Cerrar">✕</button>
   </div>
-  <div id="appGrid" class="appgrid"><div class="empty">Cargando apps…</div></div>
+  <div id="pickList" class="pickscroll"></div>
 </div>
 
-<!-- Ajustes -->
+<!-- Personalizar -->
 <div id="ajustes" class="sheet hide">
   <div class="sheethead">
-    <h2>Ajustes</h2>
+    <h2>Personalizar</h2>
     <button class="close" data-close="ajustes" aria-label="Cerrar">✕</button>
   </div>
-  <div class="opts">
-    <div class="opt">
-      <div><b>Pantalla de inicio</b><small id="homeState">Que el botón «casa» abra Pro Inicio</small></div>
-      <button id="oHome" class="obtn">Elegir</button>
-    </div>
-    <div class="opt">
-      <div><b>Abrir al encender el coche</b><small>Pro Inicio aparece sola al arrancar</small></div>
-      <label class="sw"><input id="oBoot" type="checkbox"><span></span></label>
-    </div>
-    <div class="opt">
-      <div><b>Edificios en 3D</b><small>En el mapa de la pantalla de inicio</small></div>
-      <label class="sw"><input id="o3d" type="checkbox"><span></span></label>
-    </div>
-    <div class="opt">
-      <div><b>Ubicación</b><small id="locState">Para el mapa, la velocidad y el tiempo</small></div>
-      <button id="oLoc" class="obtn">Permitir</button>
-    </div>
-    <div class="opt">
-      <div><b>Actualizaciones</b><small id="verState">Versión</small></div>
-      <button id="oUpd" class="obtn">🔄 Buscar</button>
-    </div>
-  </div>
+  <div id="opts" class="opts"></div>
 </div>
 
-<!-- Confirmación (quitar favorito) -->
-<div id="confirm" class="modal hide">
+<!-- Menú de un botón (mantener pulsado) -->
+<div id="menu" class="modal hide">
   <div class="mbox">
-    <h2 id="cfTitle">¿Quitar?</h2>
-    <div id="cfText" class="muted"></div>
-    <div class="mbtns">
-      <button id="cfNo" class="obtn ghost">Cancelar</button>
-      <button id="cfYes" class="obtn red">Quitar</button>
-    </div>
+    <h2 id="menuTitle">Botón</h2>
+    <div id="menuBtns" class="menubtns"></div>
   </div>
 </div>
 

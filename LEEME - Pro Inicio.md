@@ -10,18 +10,26 @@ Pantalla de inicio para la pantalla Android del coche (Junsun V9 del Nissan Qash
 
 ## 1. Qué hace la app
 
-Diseño tipo «pantalla de coche» (pedido el 27-nov a partir de una imagen de referencia estilo CarPlay), con los botones de las apps Pro.
+Diseño tipo «pantalla de coche» (pedido el 27-nov a partir de una imagen estilo CarPlay), con las apps Pro. **Todo es configurable** (pedido el 27-nov) y tiene **22 temas de colores**.
 
-| Zona | Qué hay |
-|---|---|
-| **Barra de arriba** | Hora, fecha, icono de GPS (encendido si hay señal), conexión (wifi / 4G / sin red) y temperatura con icono del tiempo. |
-| **Barra lateral** | Inicio · Navegar (Pro Maps) · Música (Pro Radio) · Teléfono (marcador) · Todas las apps · Ajustes · Coche (Pro OBD). En vertical va abajo. |
-| **Mapa en directo** | Mapa oscuro de OpenFreeMap con MapLibre (como Pro Maps), edificios 3D, flecha azul con tu posición que sigue la dirección de marcha. Arriba, tarjeta verde con la calle por la que vas (sacada de los datos del propio mapa). Abajo, velocidad (GPS) y ciudad. Botones +, − y centrar. Tocar las tarjetas abre Pro Maps. |
-| **Música** | Logo, canción y emisora de Pro Radio, barra «● EN DIRECTO», botones ⏮ ⏯ ⏭. Tocarla abre Pro Radio. |
-| **Cuadro de apps** | Pro Maps, Pro Radio, Pro OBD, Pro Garaje (si no está instalada sale apagada con ↓ y abre su descarga), las apps favoritas que se añadan, «Más apps» (cajón) y «Añadir». Mantener pulsada una favorita la quita. Si hay muchas, el cuadro se desliza. |
-| **Ajustes** | Pantalla de inicio, abrir al encender el coche, edificios 3D, permiso de ubicación, actualizaciones. |
+| Zona | Qué hay | Se puede cambiar |
+|---|---|---|
+| **Barra de arriba** | Hora, fecha, GPS, conexión (wifi / 4G / sin red), tiempo | Mostrar u ocultar cada cosa. Mantener pulsada abre Personalizar. |
+| **Barra lateral** | De serie: Inicio · Navegar · Pro Radio · Teléfono · Todas las apps · Personalizar · Pro OBD | Cada botón (hasta 8): cualquier app, app Pro o botón especial; mover, quitar, ocultar la barra. En vertical va abajo. |
+| **Mapa** | Mapa en directo (MapLibre + OpenFreeMap, mismos estilos que Pro Maps), edificios 3D, flecha con tu posición, tarjeta de la calle, velocidad, + − centrar | Navegador que se abre al tocarlo (Pro Maps de serie, o cualquier app: Waze, Google Maps…), estilo (Auto/Oscuro/Claro/Suave), 3D, cada tarjeta y botón, o quitar el mapa entero. |
+| **2 tarjetas** | De serie: Música (Pro Radio) arriba y Apps abajo | Cada una puede ser Música, Apps, Tiempo (ahora + 5 horas), Reloj, Velocidad o Nada; a la derecha o a la izquierda. |
+| **Cuadro de apps** | Pro Maps, Pro Radio, Pro OBD, Pro Garaje, favoritas, Más apps, Añadir | Añadir, cambiar, mover y quitar cualquier botón. |
 
-**No se puede mostrar la ruta de Pro Maps** (flecha de giro, minutos, km, hora de llegada) dentro de Pro Inicio: son apps separadas y Pro Maps no comparte esos datos. Se haría cambiando también Pro Maps para que los envíe; pendiente de que Francisco lo decida.
+**Botones especiales:** Inicio, Navegar (abre el navegador elegido), Todas las apps, Añadir, Personalizar, Teléfono, Vacío.
+**Mantener pulsado** cualquier botón, tarjeta o el mapa abre su menú (cambiar, mover, quitar, personalizar).
+**Temas:** Medianoche (de serie), Carbono, Grafito, Océano, Hielo, Turquesa, Esmeralda, Bosque, Oro, Cobre, Atardecer, Lava, Rubí, Nissan, Rosa, Violeta, Neón, Retro 80, y claros: Ártico, Arena, Menta, Lavanda. Están en `THEMES` (app.js); cada tema genera las variables CSS.
+La configuración se guarda en el aparato (`localStorage`, clave `pi.cfg`); «Restablecer» vuelve al diseño original manteniendo el tema.
+
+### El mapa NO puede ser la pantalla de otra app (decisión del 27-nov)
+Francisco pidió que el mapa fuera el propio Pro Maps (o el navegador que elija). Android no deja que una app normal meta dentro la pantalla de otra app (solo lo pueden hacer las apps del sistema del fabricante de la radio). Por eso:
+- El mapa es propio de Pro Inicio, con los mismos estilos que Pro Maps, y al tocarlo se abre el navegador elegido.
+- **Pendiente de decidir:** que Pro Maps envíe su ruta (línea, flecha de giro, km, minutos, llegada) para dibujarla aquí. Supone cambiar Pro Maps.
+- Waze y Google Maps no comparten su ruta, así que con ellos solo se puede abrir la app.
 
 El botón «atrás» no sale de la app (es la pantalla de inicio): solo cierra paneles.
 
@@ -30,7 +38,7 @@ El botón «atrás» no sale de la app (es la pantalla de inicio): solo cierra p
 - **Tiempo:** Open-Meteo (gratis) con la ubicación; nombre del sitio con BigDataCloud. Se actualiza cada 15 minutos.
 - **GPS:** cada segundo mientras Pro Inicio está delante (para el mapa y la velocidad); se para al abrir otra app.
 - **Mapa:** necesita internet (MapLibre desde unpkg/jsdelivr y teselas de OpenFreeMap). Sin internet sale «Sin mapa» y lo vuelve a intentar al volver la conexión.
-- **Favoritas:** se guardan en la propia app (localStorage), con su icono.
+- **Configuración:** botones, tarjetas, tema y navegador en `localStorage` (`pi.cfg`), con el icono de cada app elegida.
 - **Paquetes de la gama Pro** (para saber si están instaladas y abrirlas):
   - Pro Maps → `com.fserrano.promaps`
   - Pro Radio → `es.proradio.app`
@@ -69,6 +77,7 @@ Java, con una sola librería: `androidx.media3:media3-session` (para hablar con 
 
 ## 5. Historial
 - **1.0.1** Primera versión.
+- **1.0.5** Todo configurable (barra lateral, tarjetas, cuadro de apps, mapa, barra de arriba), 22 temas, navegador a elegir, tarjetas Tiempo/Reloj/Velocidad.
 - **1.0.4** Diseño nuevo tipo pantalla de coche (mapa en directo, barra lateral, música y cuadro de apps con favoritas).
 - **1.0.3** Botones «Descargar» también para Pro OBD y Pro Garaje (ya existen). Primera prueba en la Junsun (25-nov): se ve bien a 1280×720.
 - **1.0.2** Quitado el permiso de «acceso a notificaciones»: Google Play Protect bloqueaba la instalación («Aplicación bloqueada para proteger tu dispositivo»). Ahora lee lo que suena directamente de Pro Radio.

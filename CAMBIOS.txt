@@ -1,5 +1,7 @@
-• Diseño nuevo tipo pantalla de coche: barra lateral, mapa en directo, música y apps
-• Mapa con tu posición, edificios en 3D, la calle por la que vas y tu velocidad (toca para abrir Pro Maps)
-• Música de Pro Radio con «EN DIRECTO» y botones ⏮ ⏯ ⏭
-• Cuadro de apps: Pro Maps, Pro Radio, Pro OBD, Pro Garaje + tus apps favoritas (botón «Añadir»; mantén pulsada para quitar)
-• Barra de arriba con hora, GPS, conexión y temperatura
+• 22 temas de colores (oscuros y claros): Personalizar → Tema de colores
+• Todo configurable: botones de la barra lateral, cuadro de apps, tarjetas, mapa y barra de arriba
+• Mantén pulsado cualquier botón, tarjeta o el mapa para cambiarlo, moverlo o quitarlo
+• Elige el navegador que se abre desde el mapa (Pro Maps, Waze, Google Maps o el que quieras)
+• Tarjetas nuevas: Tiempo (próximas horas), Reloj grande y Velocidad
+• Mapa con los mismos estilos que Pro Maps (Auto, Oscuro, Claro, Suave)
+• Mantén pulsada la hora para abrir Personalizar
