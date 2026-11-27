@@ -52,6 +52,6 @@ dependencies {
     // Para hablar con el reproductor de Pro Radio (lo que suena, ⏮ ⏯ ⏭) sin permisos especiales
     implementation 'androidx.media3:media3-session:1.4.1'
     // Permite pedir a Android la «ventana libre» (función oculta de Android, como hace la app Taskbar)
-    implementation 'org.lsposed.hiddenapibypass:hiddenapibypass:+'
+    implementation 'org.lsposed.hiddenapibypass:hiddenapibypass:4.3'
     implementation platform('org.jetbrains.kotlin:kotlin-bom:1.8.22')
 }
