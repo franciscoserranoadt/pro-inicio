@@ -1,7 +1,4 @@
-• 22 temas de colores (oscuros y claros): Personalizar → Tema de colores
-• Todo configurable: botones de la barra lateral, cuadro de apps, tarjetas, mapa y barra de arriba
-• Mantén pulsado cualquier botón, tarjeta o el mapa para cambiarlo, moverlo o quitarlo
-• Elige el navegador que se abre desde el mapa (Pro Maps, Waze, Google Maps o el que quieras)
-• Tarjetas nuevas: Tiempo (próximas horas), Reloj grande y Velocidad
-• Mapa con los mismos estilos que Pro Maps (Auto, Oscuro, Claro, Suave)
-• Mantén pulsada la hora para abrir Personalizar
+• La tarjeta del mapa muestra el navegador de verdad: buscar destino, gasolineras, radares… todo desde la propia tarjeta
+• Con Pro Maps: se ve encajada en la tarjeta (necesita Pro Maps 3.11 y el permiso «Mostrar sobre otras apps»)
+• Con otro navegador (Waze, Google Maps…): se abre en una ventana encima de la tarjeta, si la pantalla permite «ventanas libres» (prueba)
+• Si prefieres el mapa de antes: Personalizar → Mapa → «Mapa de Pro Inicio»

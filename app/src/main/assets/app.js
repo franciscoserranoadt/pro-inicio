@@ -11,7 +11,8 @@
     open: () => true, openComp: () => true, allApps: () => setTimeout(() => PI.onApps([]), 200),
     media: () => {}, refreshMedia: () => {}, mediaPermission: () => {}, locationPermission: () => {},
     get: () => {}, openUrl: () => {}, homeSettings: () => {}, isHome: () => false, net: () => 'wifi',
-    phone: () => {}, icon: () => '', has: () => true,
+    phone: () => {}, icon: () => '', has: () => true, card: () => {}, cardPermission: () => {}, cardRetry: () => {},
+    freeform: () => false, openWindow: () => false, devSettings: () => {},
     setPref: () => {}, getPref: (k, d) => d, checkUpdate: () => {}, doUpdate: () => {}
   };
 
@@ -129,7 +130,7 @@
   const DEFAULT_CFG = () => ({
     theme: 'medianoche',
     nav: { t: 'pro', id: 'maps' },
-    map: true, mapStyle: 'auto', b3d: true, street: true, speed: true, mapBtns: true,
+    map: true, mapMode: 'nav', mapStyle: 'auto', b3d: true, street: true, speed: true, mapBtns: true,
     side: 'right', top: 'music', bottom: 'apps',
     rail: true,
     railItems: [{ t: 'act', id: 'home' }, { t: 'act', id: 'nav' }, { t: 'pro', id: 'radio' }, { t: 'act', id: 'phone' },
@@ -288,9 +289,11 @@
     app.classList.toggle('noMap', !cfg.map);
     $('rail').classList.toggle('hide', !cfg.rail);
     $('mapCard').classList.toggle('hide', !cfg.map);
-    $('street').classList.toggle('hide', !cfg.street);
-    $('speedCard').classList.toggle('hide', !cfg.speed);
-    document.querySelector('.mapbtns').classList.toggle('hide', !cfg.mapBtns);
+    const own = cardKind() === 'own';
+    $('street').classList.toggle('hide', !cfg.street || !own);
+    $('speedCard').classList.toggle('hide', !cfg.speed || !own);
+    document.querySelector('.mapbtns').classList.toggle('hide', !cfg.mapBtns || !own);
+    drawCardMsg();
     $('fecha').classList.toggle('hide', !cfg.st.date);
     $('stGps').classList.toggle('hide', !cfg.st.gps);
     $('stNet').classList.toggle('hide', !cfg.st.net);
@@ -298,7 +301,8 @@
     $('cityName').textContent = store.get('city', '') || navLabel();
     $('hint').textContent = 'Navegar con ' + navLabel();
     if (!streetKnown) $('streetSub').textContent = 'Toca para navegar con ' + navLabel();
-    if (cfg.map) { initMap(); setTimeout(() => { if (map) map.resize(); }, 60); }
+    if (cfg.map && own) { initMap(); setTimeout(() => { if (map) map.resize(); }, 60); }
+    setTimeout(syncCard, 80);
     if (cards.includes('weather')) loadWeather(false);
   }
 
@@ -511,10 +515,16 @@
   $('speedCard').addEventListener('click', () => runItem(cfg.nav));
   longPress($('mapCard'), () => menu('Mapa', [
     ['🧭  Elegir navegador (ahora: ' + navLabel() + ')', chooseNav],
+    [cfg.mapMode === 'own' ? '🗺️  Ver el navegador de verdad en la tarjeta' : '🗺️  Usar el mapa de Pro Inicio',
+      () => { cfg.mapMode = cfg.mapMode === 'own' ? 'nav' : 'own'; save(); cardState = ''; drawLayout(); }],
     ['🎨  Personalizar pantalla', openSettings]
   ]));
   function chooseNav() {
-    pick({ title: 'Navegador que se abre desde el mapa', acts: false }, (x) => { cfg.nav = x; save(); drawLayout(); toast('Navegador: ' + labelOf(x)); });
+    pick({ title: 'Navegador de la tarjeta del mapa', acts: false }, (x) => {
+      cfg.nav = x; save(); cardState = ''; winOpenedOnce = false; drawLayout();
+      if (!$('ajustes').classList.contains('hide')) renderOpts();
+      toast('Navegador: ' + labelOf(x));
+    });
   }
 
   // Calle en la que estás: la calle con nombre más cercana (datos del propio mapa, sin internet extra)
@@ -551,6 +561,97 @@
     }
   }
   setInterval(findStreet, 3000);
+
+  // =====================================================================
+  //  TARJETA DEL MAPA CON EL NAVEGADOR DE VERDAD
+  //  · Pro Maps: se dibuja encajada en la tarjeta (modo tarjeta de Pro Maps 3.11+)
+  //  · Otro navegador: se abre en una «ventana libre» del tamaño de la tarjeta (si la pantalla lo permite)
+  // =====================================================================
+  function cardKind() {
+    if (!cfg.map || cfg.mapMode === 'own') return 'own';
+    return cfg.nav && cfg.nav.t === 'pro' && cfg.nav.id === 'maps' ? 'promaps' : 'window';
+  }
+  const navPkg = () => cfg.nav.t === 'pro' ? PRO[cfg.nav.id].pkg : cfg.nav.pkg;
+  const navCls = () => cfg.nav.t === 'app' ? (cfg.nav.cls || '') : '';
+  let cardState = '';
+  let winOpenedOnce = false;
+
+  function cardButtons(list) {
+    const box = $('cmBtns');
+    box.innerHTML = '';
+    list.forEach(([txt, fn, cls]) => {
+      const b = document.createElement('button');
+      b.className = 'obtn ' + (cls || '');
+      b.textContent = txt;
+      b.addEventListener('click', fn);
+      box.appendChild(b);
+    });
+  }
+  function cardMsg(title, text, buttons) {
+    $('cmIcon').innerHTML = tileHtml(cfg.nav);
+    $('cmTitle').textContent = title;
+    $('cmText').textContent = text || '';
+    cardButtons(buttons || []);
+  }
+  function drawCardMsg() {
+    const k = cardKind();
+    $('cardMsg').classList.toggle('hide', k === 'own');
+    if (k === 'own') return;
+    const ownMap = ['Usar el mapa de Pro Inicio', () => { cfg.mapMode = 'own'; save(); drawLayout(); }, 'ghost'];
+    if (k === 'promaps') {
+      if (cardState === 'noperm') {
+        cardMsg('Falta un permiso de Pro Maps',
+          'Para verse dentro de esta tarjeta, Pro Maps necesita «Mostrar sobre otras apps».\n1) Toca «Dar permiso».  2) Busca Pro Maps y activa el interruptor.  3) Vuelve atrás.',
+          [['Dar permiso', () => A.cardPermission()], ownMap]);
+      } else if (cardState === 'old') {
+        cardMsg('Actualiza Pro Maps', 'Hace falta Pro Maps 3.11 o más nueva. Ábrela: te avisará de la versión nueva. Luego vuelve aquí.',
+          [['Abrir Pro Maps', () => openPro('maps')], ['Reintentar', () => { cardState = ''; drawCardMsg(); A.cardRetry(); }, 'ghost']]);
+      } else if (cardState === 'missing') {
+        cardMsg('Pro Maps no está instalada', 'Descárgala e instálala; después aparecerá aquí.', [['Descargar Pro Maps', () => openPro('maps')], ownMap]);
+      } else if (cardState === 'error') {
+        cardMsg('No se pudo abrir Pro Maps', '', [['Reintentar', () => { cardState = ''; drawCardMsg(); A.cardRetry(); }], ownMap]);
+      } else {
+        cardMsg('Abriendo Pro Maps…', 'Pro Maps aparecerá aquí en unos segundos.', []);
+      }
+      return;
+    }
+    // Otro navegador: ventana libre
+    const name = navLabel();
+    if (!A.freeform()) {
+      cardMsg(name + ' en la tarjeta',
+        'Tu pantalla tiene que permitir «ventanas libres» (solo una vez):\n1) Ajustes > Información > toca 7 veces «Número de compilación».\n2) Ajustes > Sistema > Opciones de desarrollador > activa «Habilitar ventanas de formato libre».\n3) Reinicia la pantalla.',
+        [['Abrir opciones de desarrollador', () => A.devSettings()], ['Abrir ' + name, () => runItem(cfg.nav), 'ghost'], ownMap]);
+      return;
+    }
+    cardMsg(name, 'Se abre en una ventana encima de esta tarjeta. Puedes usarla con normalidad.',
+      [['Abrir ' + name + ' aquí', openNavWindow], ownMap]);
+    if (!winOpenedOnce) { winOpenedOnce = true; setTimeout(openNavWindow, 1500); }
+  }
+  function openNavWindow() {
+    syncCard(true);
+    setTimeout(() => {
+      if (!A.has(navPkg())) { toast(navLabel() + ' no está instalada'); return; }
+      if (!A.openWindow(navPkg(), navCls())) toast('No se pudo abrir ' + navLabel() + ' en la tarjeta');
+    }, 150);
+  }
+
+  const overlayOpen = () => !!document.querySelector('.sheet:not(.hide), .modal:not(.hide)');
+  let lastCardKey = '';
+  /** Le dice a Android dónde está la tarjeta y qué debe ir dentro. */
+  function syncCard(force) {
+    const k = cardKind();
+    let mode = k === 'promaps' ? (overlayOpen() || document.hidden ? 'none' : 'promaps') : k === 'window' ? 'window' : 'none';
+    const el = $('mapCard'), r = el.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    if (r.width < 40 || r.height < 40 || el.classList.contains('hide')) mode = 'none';
+    const rad = Math.round((parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0) * d);
+    const v = [Math.round(r.left * d), Math.round(r.top * d), Math.round(r.width * d), Math.round(r.height * d), rad];
+    const key = mode + v.join(',');
+    if (!force && key === lastCardKey) return;
+    lastCardKey = key;
+    try { A.card(mode, v[0], v[1], v[2], v[3], v[4]); } catch (e) { /* versión sin tarjeta */ }
+  }
+  setInterval(syncCard, 700);
+  window.addEventListener('resize', () => setTimeout(syncCard, 120));
 
   // =====================================================================
   //  MÚSICA (Pro Radio)
@@ -743,7 +844,10 @@
     // --- Mapa
     h3('Mapa');
     row('Mostrar el mapa', 'Si lo quitas, las tarjetas ocupan su sitio', sw(cfg.map, (v) => set('map', v)));
-    row('Navegador', 'Se abre al tocar el mapa y el botón «Navegar»: ' + navLabel(), btn('Cambiar', chooseNav));
+    row('Navegador', 'El que sale en la tarjeta y abre el botón «Navegar»: ' + navLabel(), btn('Cambiar', chooseNav));
+    row('Qué se ve en la tarjeta', cfg.mapMode === 'own' ? 'Mapa propio de Pro Inicio (toca para abrir el navegador)' :
+      (cardKind() === 'promaps' ? 'Pro Maps de verdad, encajada en la tarjeta' : navLabel() + ' de verdad, en una ventana encima de la tarjeta'),
+      seg({ nav: 'El navegador', own: 'Mapa de Pro Inicio' }, cfg.mapMode, (v) => set('mapMode', v)));
     row('Estilo del mapa', 'Automático: oscuro de noche', seg({ auto: 'Auto', dark: 'Oscuro', light: 'Claro', soft: 'Suave' }, cfg.mapStyle, (v) => set('mapStyle', v)));
     row('Edificios en 3D', '', sw(cfg.b3d, (v) => { cfg.b3d = v; save(); if (mapReady && map.getLayer('b3d')) map.setLayoutProperty('b3d', 'visibility', v ? 'visible' : 'none'); }));
     row('Tarjeta verde de la calle', '', sw(cfg.street, (v) => set('street', v)));
@@ -805,6 +909,11 @@
   window.PI = {
     toast,
     onMedia(m) { media = m || { has: false }; renderMedia(); },
+    onCard(st) {
+      cardState = st === 'ok' ? '' : st;
+      drawCardMsg();
+      if (st === 'ok') $('cmText').textContent = 'Si Pro Maps no aparece, toca la hora y vuelve.';
+    },
     onLocation(lat, lon, kmh, brg, gps) {
       loc = { lat, lon };
       store.set('loc', loc);
@@ -834,7 +943,11 @@
       $('upd').classList.remove('hide');
     },
     updateDone() { $('updGo').textContent = 'Actualizar'; $('updGo').disabled = false; },
-    onResume() { drawGrid(); A.refreshMedia(); loadWeather(false); updNet(); if (map) map.resize(); },
+    onResume() {
+      drawGrid(); A.refreshMedia(); loadWeather(false); updNet(); if (map) map.resize();
+      if (cardState === 'noperm' || cardState === 'old') { cardState = ''; drawCardMsg(); }
+      syncCard(true);
+    },
     back() {
       if (!$('upd').classList.contains('hide')) $('upd').classList.add('hide');
       else if (!$('menu').classList.contains('hide')) $('menu').classList.add('hide');

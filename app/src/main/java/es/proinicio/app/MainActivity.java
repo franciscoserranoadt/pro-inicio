@@ -88,6 +88,21 @@ public class MainActivity extends Activity {
         @Override public void onProviderDisabled(String p) { }
     };
 
+    // ---- Tarjeta del mapa: Pro Maps encajada (modo tarjeta) o navegador en ventana libre ----
+    private String cardMode = "none";
+    private int[] cardRect = null;
+    private boolean resumed = false;
+    private String cardSent = "";
+    private long cardAskedAt = 0;
+    private boolean cardAnswered = false;
+    private final BroadcastReceiver cardStatus = new BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            cardAnswered = true;
+            String st = i.getStringExtra("status");
+            js("PI.onCard && PI.onCard(" + JSONObject.quote(st == null ? "" : st) + ")");
+        }
+    };
+
     // ---- Apps instaladas o quitadas ----
     private final BroadcastReceiver pkgReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) { js("PI.appsChanged && PI.appsChanged()"); }
@@ -129,6 +144,11 @@ public class MainActivity extends Activity {
             if (Build.VERSION.SDK_INT >= 33) registerReceiver(pkgReceiver, f, Context.RECEIVER_EXPORTED);
             else registerReceiver(pkgReceiver, f);
         } catch (Exception ignored) { }
+        try {
+            IntentFilter cf = new IntentFilter("es.proinicio.app.CARD_STATUS");
+            if (Build.VERSION.SDK_INT >= 33) registerReceiver(cardStatus, cf, Context.RECEIVER_EXPORTED);
+            else registerReceiver(cardStatus, cf);
+        } catch (Exception ignored) { }
 
         if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -142,6 +162,9 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        resumed = true;
+        cardSent = "";
+        applyCard();
         hideSystemBars();
         // Comprueba actualizaciones al abrir y, como mucho, cada 6 horas
         long now = System.currentTimeMillis();
@@ -150,6 +173,13 @@ public class MainActivity extends Activity {
             handler.postDelayed(() -> checkUpdate(false), 4000);
         }
         js("PI.onResume && PI.onResume()");
+    }
+
+    @Override
+    protected void onPause() {
+        resumed = false;
+        sendCard("hide");
+        super.onPause();
     }
 
     @Override
@@ -171,6 +201,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         try { unregisterReceiver(pkgReceiver); } catch (Exception ignored) { }
+        try { unregisterReceiver(cardStatus); } catch (Exception ignored) { }
+        sendCard("hide");
         try { lm.removeUpdates(locListener); } catch (Exception ignored) { }
         super.onDestroy();
     }
@@ -440,6 +472,80 @@ public class MainActivity extends Activity {
         js("PI.onLocation(" + l.getLatitude() + "," + l.getLongitude() + "," + kmh + "," + brg + "," + gps + ")");
     }
 
+    // ================= tarjeta del mapa =================
+
+    private void applyCard() {
+        if (!resumed) return;
+        if ("promaps".equals(cardMode) && cardRect != null) sendCard("show");
+        else sendCard("hide");
+    }
+
+    /** Órdenes a Pro Maps (modo tarjeta). Solo se manda si cambia algo. */
+    private void sendCard(String op) {
+        String key = op + (cardRect != null && "show".equals(op) ? cardRect[0] + "," + cardRect[1] + "," + cardRect[2] + "," + cardRect[3] : "");
+        if (key.equals(cardSent)) return;
+        // «Quitar» solo si antes se pidió «mostrar» (así no se despierta Pro Maps sin necesidad)
+        if ("hide".equals(op) && !cardSent.startsWith("show")) { cardSent = key; return; }
+        cardSent = key;
+        try {
+            Intent i = new Intent("com.fserrano.promaps.CARD");
+            i.setComponent(new ComponentName(PKG_MAPS, PKG_MAPS + ".CardReceiver"));
+            i.putExtra("op", op);
+            i.putExtra("reply", getPackageName());
+            if (cardRect != null) {
+                i.putExtra("x", cardRect[0]); i.putExtra("y", cardRect[1]);
+                i.putExtra("w", cardRect[2]); i.putExtra("h", cardRect[3]); i.putExtra("r", cardRect[4]);
+            }
+            sendBroadcast(i);
+        } catch (Exception ignored) { }
+        if ("show".equals(op)) {
+            cardAnswered = false;
+            cardAskedAt = System.currentTimeMillis();
+            final long asked = cardAskedAt;
+            handler.postDelayed(() -> {
+                if (!cardAnswered && asked == cardAskedAt && resumed && "promaps".equals(cardMode)) {
+                    js("PI.onCard && PI.onCard(" + JSONObject.quote(installed(PKG_MAPS) ? "old" : "missing") + ")");
+                }
+            }, 4000);
+        }
+    }
+
+    /** ¿Permite este aparato ventanas libres (formato libre)? */
+    private boolean freeformOk() {
+        try {
+            if (getPackageManager().hasSystemFeature("android.software.freeform_window_management")) return true;
+            return Settings.Global.getInt(getContentResolver(), "enable_freeform_support", 0) != 0
+                    || Settings.Global.getInt(getContentResolver(), "force_resizable_activities", 0) != 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Abre una app en una ventana libre del tamaño y la posición de la tarjeta. */
+    private boolean openInWindow(String pkg, String cls) {
+        if (cardRect == null) return false;
+        try {
+            Intent i;
+            if (cls != null && !cls.isEmpty()) {
+                i = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(new ComponentName(pkg, cls));
+            } else {
+                i = getPackageManager().getLaunchIntentForPackage(pkg);
+            }
+            if (i == null) return false;
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            android.app.ActivityOptions o = android.app.ActivityOptions.makeBasic();
+            o.setLaunchBounds(new android.graphics.Rect(cardRect[0], cardRect[1], cardRect[0] + cardRect[2], cardRect[1] + cardRect[3]));
+            try {
+                java.lang.reflect.Method m = android.app.ActivityOptions.class.getMethod("setLaunchWindowingMode", int.class);
+                m.invoke(o, 5); // 5 = ventana libre (freeform)
+            } catch (Throwable ignored) { }
+            startActivity(i, o.toBundle());
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     // ================= actualizaciones =================
 
     private void checkUpdate(boolean manual) {
@@ -647,6 +753,58 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public boolean has(String pkg) { return installed(pkg); }
+
+        /** Tarjeta del mapa: modo (none / promaps / window) y su posición en la página (píxeles reales). */
+        @JavascriptInterface
+        public void card(String mode, int x, int y, int w, int h, int r) {
+            handler.post(() -> {
+                int[] loc = new int[2];
+                try { web.getLocationOnScreen(loc); } catch (Exception ignored) { }
+                cardMode = mode == null ? "none" : mode;
+                cardRect = new int[]{x + loc[0], y + loc[1], w, h, r};
+                applyCard();
+            });
+        }
+
+        /** Permiso «Mostrar sobre otras apps» de Pro Maps. */
+        @JavascriptInterface
+        public void cardPermission() {
+            runOnUiThread(() -> {
+                try {
+                    Intent i = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + PKG_MAPS));
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(i);
+                } catch (Exception e) {
+                    toast("Abre Ajustes > Apps > Pro Maps > Mostrar sobre otras apps");
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void cardRetry() { handler.post(() -> { cardSent = ""; applyCard(); }); }
+
+        @JavascriptInterface
+        public boolean freeform() { return freeformOk(); }
+
+        @JavascriptInterface
+        public boolean openWindow(String pkg, String cls) {
+            final boolean[] ok = {false};
+            ok[0] = openInWindow(pkg, cls);
+            return ok[0];
+        }
+
+        @JavascriptInterface
+        public void devSettings() {
+            runOnUiThread(() -> {
+                try {
+                    Intent i = new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS);
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(i);
+                } catch (Exception e) {
+                    try { startActivity(new Intent(Settings.ACTION_DEVICE_INFO_SETTINGS)); } catch (Exception ignored) { }
+                }
+            });
+        }
 
         @JavascriptInterface
         public void openUrl(String url) {

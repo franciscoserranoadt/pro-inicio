@@ -16,7 +16,7 @@ Diseño tipo «pantalla de coche» (pedido el 27-nov a partir de una imagen esti
 |---|---|---|
 | **Barra de arriba** | Hora, fecha, GPS, conexión (wifi / 4G / sin red), tiempo | Mostrar u ocultar cada cosa. Mantener pulsada abre Personalizar. |
 | **Barra lateral** | De serie: Inicio · Navegar · Pro Radio · Teléfono · Todas las apps · Personalizar · Pro OBD | Cada botón (hasta 8): cualquier app, app Pro o botón especial; mover, quitar, ocultar la barra. En vertical va abajo. |
-| **Mapa** | Mapa en directo (MapLibre + OpenFreeMap, mismos estilos que Pro Maps), edificios 3D, flecha con tu posición, tarjeta de la calle, velocidad, + − centrar | Navegador que se abre al tocarlo (Pro Maps de serie, o cualquier app: Waze, Google Maps…), estilo (Auto/Oscuro/Claro/Suave), 3D, cada tarjeta y botón, o quitar el mapa entero. |
+| **Mapa** | El navegador de verdad (Pro Maps encajada, u otro en ventana libre) o el mapa propio: mapa en directo (MapLibre + OpenFreeMap, mismos estilos que Pro Maps), edificios 3D, flecha con tu posición, tarjeta de la calle, velocidad, + − centrar | Navegador que se abre al tocarlo (Pro Maps de serie, o cualquier app: Waze, Google Maps…), estilo (Auto/Oscuro/Claro/Suave), 3D, cada tarjeta y botón, o quitar el mapa entero. |
 | **2 tarjetas** | De serie: Música (Pro Radio) arriba y Apps abajo | Cada una puede ser Música, Apps, Tiempo (ahora + 5 horas), Reloj, Velocidad o Nada; a la derecha o a la izquierda. |
 | **Cuadro de apps** | Pro Maps, Pro Radio, Pro OBD, Pro Garaje, favoritas, Más apps, Añadir | Añadir, cambiar, mover y quitar cualquier botón. |
 
@@ -25,11 +25,11 @@ Diseño tipo «pantalla de coche» (pedido el 27-nov a partir de una imagen esti
 **Temas:** Medianoche (de serie), Carbono, Grafito, Océano, Hielo, Turquesa, Esmeralda, Bosque, Oro, Cobre, Atardecer, Lava, Rubí, Nissan, Rosa, Violeta, Neón, Retro 80, y claros: Ártico, Arena, Menta, Lavanda. Están en `THEMES` (app.js); cada tema genera las variables CSS.
 La configuración se guarda en el aparato (`localStorage`, clave `pi.cfg`); «Restablecer» vuelve al diseño original manteniendo el tema.
 
-### El mapa NO puede ser la pantalla de otra app (decisión del 27-nov)
-Francisco pidió que el mapa fuera el propio Pro Maps (o el navegador que elija). Android no deja que una app normal meta dentro la pantalla de otra app (solo lo pueden hacer las apps del sistema del fabricante de la radio). Por eso:
-- El mapa es propio de Pro Inicio, con los mismos estilos que Pro Maps, y al tocarlo se abre el navegador elegido.
-- **Pendiente de decidir:** que Pro Maps envíe su ruta (línea, flecha de giro, km, minutos, llegada) para dibujarla aquí. Supone cambiar Pro Maps.
-- Waze y Google Maps no comparten su ruta, así que con ellos solo se puede abrir la app.
+### El navegador de verdad en la tarjeta del mapa (27-nov, v1.0.6)
+Francisco quiere manejar el navegador (buscar destino, gasolineras…) desde la propia tarjeta. Android no deja meter la pantalla de otra app dentro de una app normal, así que se hizo de dos formas (eligió «probar las dos»):
+- **Pro Maps (de serie):** Pro Maps 3.11 tiene un «modo tarjeta». Pro Inicio le manda por un aviso (`com.fserrano.promaps.CARD`, receptor `CardReceiver`) la posición y el tamaño de la tarjeta en píxeles; Pro Maps saca su pantalla (el mismo WebView, con todo funcionando) a una ventana flotante encima de la tarjeta. Al salir de Pro Inicio, abrir un panel o abrir Pro Maps a pantalla completa, la ventana se quita y Pro Maps recupera su pantalla. Pro Maps contesta con `es.proinicio.app.CARD_STATUS` (ok / noperm / error). Necesita el permiso **«Mostrar sobre otras apps»** de Pro Maps (Pro Inicio muestra el botón «Dar permiso»).
+- **Otro navegador (Waze, Google Maps…):** se abre en una **ventana libre** (freeform) con la posición y el tamaño de la tarjeta (`ActivityOptions.setLaunchBounds`). Solo funciona si la pantalla tiene activado «Habilitar ventanas de formato libre» en Opciones de desarrollador (Pro Inicio explica los pasos). **Es una prueba:** puede que la Junsun no lo permita.
+- Opción «Mapa de Pro Inicio»: el mapa propio de antes (MapLibre) que abre el navegador al tocarlo.
 
 El botón «atrás» no sale de la app (es la pantalla de inicio): solo cierra paneles.
 
@@ -77,6 +77,7 @@ Java, con una sola librería: `androidx.media3:media3-session` (para hablar con 
 
 ## 5. Historial
 - **1.0.1** Primera versión.
+- **1.0.6** Navegador de verdad en la tarjeta del mapa (Pro Maps en modo tarjeta; otros en ventana libre, de prueba).
 - **1.0.5** Todo configurable (barra lateral, tarjetas, cuadro de apps, mapa, barra de arriba), 22 temas, navegador a elegir, tarjetas Tiempo/Reloj/Velocidad.
 - **1.0.4** Diseño nuevo tipo pantalla de coche (mapa en directo, barra lateral, música y cuadro de apps con favoritas).
 - **1.0.3** Botones «Descargar» también para Pro OBD y Pro Garaje (ya existen). Primera prueba en la Junsun (25-nov): se ve bien a 1280×720.
