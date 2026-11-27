@@ -11,7 +11,9 @@
     open: () => true, openComp: () => true, allApps: () => setTimeout(() => PI.onApps([]), 200),
     media: () => {}, refreshMedia: () => {}, mediaPermission: () => {}, locationPermission: () => {},
     get: () => {}, openUrl: () => {}, homeSettings: () => {}, isHome: () => false, net: () => 'wifi',
-    phone: () => {}, icon: () => '', has: () => true, card: () => {}, cardPermission: () => {}, cardRetry: () => {},
+    phone: () => '', setPhoneApp: () => {}, phoneApp: () => '', playRadio: () => {},
+    widgetList: () => setTimeout(() => PI.onWidgets([]), 200), widgetAdd: () => {}, widgetRemove: () => {}, widgetShow: () => {},
+    icon: () => '', has: () => true, card: () => {}, cardPermission: () => {}, cardRetry: () => {},
     freeform: () => false, openWindow: () => false, devSettings: () => {}, diag: () => '{}',
     setPref: () => {}, getPref: (k, d) => d, checkUpdate: () => {}, doUpdate: () => {}
   };
@@ -125,7 +127,7 @@
     home: 'Inicio', nav: 'Navegar', apps: 'Todas las apps', more: 'Más apps', add: 'Añadir',
     settings: 'Personalizar', phone: 'Teléfono', none: 'Vacío'
   };
-  const CARDS = { music: 'Música', apps: 'Apps', weather: 'Tiempo', clock: 'Reloj', speed: 'Velocidad', none: 'Nada' };
+  const CARDS = { music: 'Música', apps: 'Apps', widget: 'Widget', weather: 'Tiempo', clock: 'Reloj', speed: 'Velocidad', none: 'Nada' };
 
   const DEFAULT_CFG = () => ({
     theme: 'medianoche',
@@ -137,7 +139,9 @@
       { t: 'act', id: 'apps' }, { t: 'act', id: 'settings' }, { t: 'pro', id: 'obd' }],
     grid: [{ t: 'pro', id: 'maps' }, { t: 'pro', id: 'radio' }, { t: 'pro', id: 'obd' }, { t: 'pro', id: 'garaje' },
       { t: 'act', id: 'more' }, { t: 'act', id: 'add' }],
-    st: { date: true, gps: true, net: true, wx: true }
+    st: { date: true, gps: true, net: true, wx: true },
+    // Widget de cada tarjeta (top / bottom): { id, label, pkg }. Es de cada aparato: no se sincroniza.
+    widgets: {}
   });
 
   let cfg = store.get('cfg', null);
@@ -206,9 +210,26 @@
       case 'apps': case 'more': pick({ title: 'Todas las apps', acts: false, pros: false }, (x) => runItem(x)); break;
       case 'add': pick({ title: 'Añadir al cuadro de apps', acts: true }, (x) => { addToGrid(x); }); break;
       case 'settings': openSettings(); break;
-      case 'phone': A.phone(); break;
+      case 'phone': if (!A.phone()) choosePhone(true); break;
       default: break;
     }
+  }
+  /** Elegir la app que abre el botón Teléfono (en la Junsun, su app de teléfono Bluetooth). */
+  function choosePhone(notFound) {
+    if (notFound) toast('No encuentro la app del teléfono: elígela una vez y la recordaré');
+    pick({ title: 'App del teléfono', acts: false, pros: false }, (x) => {
+      if (x.t !== 'app') return;
+      A.setPhoneApp(x.pkg, x.cls || '');
+      toast('El botón Teléfono abrirá ' + x.label);
+      if (!$('ajustes').classList.contains('hide')) renderOpts();
+      A.phone();
+    });
+  }
+  function phoneLabel() {
+    const p = A.phoneApp();
+    if (!p) return 'Automática (busca la app «Teléfono» o «Bluetooth»)';
+    const a = (apps || []).find((x) => x.pkg === p);
+    return a ? a.label : p;
   }
   function addToGrid(x) {
     const i = cfg.grid.findIndex((g) => g.t === 'act' && g.id === 'add');
@@ -250,7 +271,7 @@
       ['➡️  Mover después', () => { if (i < list.length - 1) { [list[i + 1], list[i]] = [list[i], list[i + 1]]; save(); redraw(); } }],
       ['🗑️  Quitar de ' + where, () => { list.splice(i, 1); save(); redraw(); }, 'red'],
       ['🎨  Personalizar pantalla', openSettings]
-    ]);
+    ].concat(it.t === 'act' && it.id === 'phone' ? [['📞  Elegir la app del teléfono', () => choosePhone(false)]] : []));
   }
 
   // =====================================================================
@@ -291,11 +312,18 @@
   }
 
   const CARD_EL = { music: 'player', apps: 'appsCard', weather: 'wxCard', clock: 'clockCard', speed: 'spdBig' };
+  const WG_EL = { top: 'wgTop', bottom: 'wgBot' };
+  const elOf = (slot) => cfg[slot] === 'widget' ? WG_EL[slot] : CARD_EL[cfg[slot]];
   function drawLayout() {
     const app = $('app'), side = $('side');
     const cards = [cfg.top, cfg.bottom].filter((c) => c && c !== 'none');
-    Object.values(CARD_EL).forEach((id) => $(id).classList.add('hide'));
-    cards.forEach((c) => { const el = $(CARD_EL[c]); el.classList.remove('hide'); side.appendChild(el); });
+    Object.values(CARD_EL).concat(Object.values(WG_EL)).forEach((id) => $(id).classList.add('hide'));
+    ['top', 'bottom'].forEach((slot) => {
+      const id = elOf(slot);
+      if (!id) return;
+      const el = $(id); el.classList.remove('hide'); side.appendChild(el);
+    });
+    drawWidgets();
     side.classList.toggle('one', cards.length === 1);
     app.classList.toggle('noSide', cards.length === 0);
     app.classList.toggle('sideLeft', cfg.side === 'left');
@@ -320,6 +348,7 @@
     if (!streetKnown) $('streetSub').textContent = 'Toca para navegar con ' + navLabel();
     if (cfg.map && own) { initMap(); setTimeout(() => { if (map) map.resize(); }, 60); }
     setTimeout(syncCard, 80);
+    setTimeout(syncWidgets, 80);
     if (cards.includes('weather')) loadWeather(false);
   }
 
@@ -681,7 +710,6 @@
     }, 150);
   }
 
-  const overlayOpen = () => !!document.querySelector('.sheet:not(.hide), .modal:not(.hide)');
   let lastCardKey = '';
   /** Le dice a Android dónde está la tarjeta y qué debe ir dentro. */
   function syncCard(force) {
@@ -705,6 +733,20 @@
   let media = { perm: true, has: false };
   function renderMedia() {
     const m = media, pl = $('player');
+    pl.classList.toggle('ext', !!m.ext && !(m.has && m.playing));
+    if (m.ext && !(m.has && m.playing)) {
+      // Suena (o sonó la última) otra app: Deezer, YouTube… Los botones van a esa app
+      const on = !!m.extPlaying;
+      pl.classList.toggle('playing', on);
+      $('icPlay').classList.toggle('hide', on);
+      $('icPause').classList.toggle('hide', !on);
+      $('pTitle').textContent = on ? 'Música de otra app' : 'Música de otra app (en pausa)';
+      $('pSub').textContent = 'Deezer, YouTube…';
+      $('lLeft').textContent = on ? 'SONANDO' : 'EN PAUSA';
+      $('lRight').textContent = 'Toca aquí para Pro Radio';
+      setArt('', '♪');
+      return;
+    }
     const playing = !!(m.has && m.playing);
     pl.classList.toggle('playing', playing);
     $('icPlay').classList.toggle('hide', playing);
@@ -738,12 +780,16 @@
   }
   $('bPlay').addEventListener('click', () => {
     A.media('toggle');
+    if (media.ext && !(media.has && media.playing)) { media.extPlaying = !media.extPlaying; renderMedia(); return; }
     if (media.has) { media.playing = !media.playing; renderMedia(); }
     else toast('Poniendo la última emisora de Pro Radio…');
   });
   $('bPrev').addEventListener('click', () => A.media('prev'));
   $('bNext').addEventListener('click', () => A.media('next'));
-  $('pTap').addEventListener('click', () => openPro('radio'));
+  $('pTap').addEventListener('click', () => {
+    if (media.ext && !(media.has && media.playing)) { toast('Cambiando a Pro Radio…'); A.playRadio(); return; }
+    openPro('radio');
+  });
   $('wxCard').addEventListener('click', () => loadWeather(true));
   $('spdBig').addEventListener('click', () => runItem(cfg.nav));
 
@@ -765,6 +811,70 @@
   });
 
   // =====================================================================
+  //  WIDGETS DE ANDROID EN LAS TARJETAS
+  //  El widget de verdad lo dibuja Android encima del hueco de la tarjeta (MainActivity → showWidget).
+  //  Aquí solo se dibuja el hueco, el aviso «Elige un widget» y se le dice a Android dónde está.
+  // =====================================================================
+  const SLOT_NAME = { top: 'de arriba', bottom: 'de abajo' };
+  function drawWidgets() {
+    ['top', 'bottom'].forEach((slot) => {
+      const el = $(WG_EL[slot]), w = cfg.widgets[slot];
+      el.querySelector('.wgph').innerHTML = w && w.id
+        ? '<div class="wgload">Cargando ' + esc(w.label || 'widget') + '…</div>'
+        : '<div class="wgicon">' + mono('apps') + '</div><b>Elige un widget</b><small>Deezer, calendario, el tiempo…</small><span class="obtn">Elegir widget</span>';
+    });
+  }
+  ['top', 'bottom'].forEach((slot) => {
+    const el = $(WG_EL[slot]);
+    el.addEventListener('click', () => { if (!(cfg.widgets[slot] && cfg.widgets[slot].id)) pickWidget(slot); });
+    longPress(el, () => widgetMenu(slot));
+  });
+  function widgetMenu(slot) {
+    const w = cfg.widgets[slot];
+    menu('Tarjeta ' + SLOT_NAME[slot] + ': ' + (w && w.label ? w.label : 'Widget'), [
+      ['🔁  Cambiar el widget', () => pickWidget(slot)],
+      ['🗑️  Quitar el widget', () => { A.widgetRemove(slot); delete cfg.widgets[slot]; save(); drawWidgets(); syncWidgets(true); }, 'red']
+      ['🧩  Cambiar la tarjeta por otra', () => menu('Tarjeta ' + SLOT_NAME[slot], Object.keys(CARDS).filter((c) => c !== 'widget')
+        .map((c) => ['Cambiar por: ' + CARDS[c], () => { cfg[slot] = c; save(); drawLayout(); }]))],
+      ['🎨  Personalizar pantalla', openSettings]
+    ]);
+  }
+
+  let widgetsList = null, wgSlot = 'top';
+  function pickWidget(slot) {
+    wgSlot = slot;
+    widgetsList = null;
+    pick({ title: 'Widget para la tarjeta ' + SLOT_NAME[slot], widgets: true }, (x) => {
+      toast('Poniendo ' + x.label + '…');
+      A.widgetAdd(slot, x.prov);
+    });
+    A.widgetList();
+  }
+
+  const overlayOpen = () => !!document.querySelector('.sheet:not(.hide), .modal:not(.hide)');
+  let wgKeys = {};
+  /** Le dice a Android dónde está cada widget y si se ve (se esconde con los paneles abiertos). */
+  function syncWidgets(force) {
+    const d = window.devicePixelRatio || 1, hidden = overlayOpen() || document.hidden;
+    ['top', 'bottom'].forEach((slot) => {
+      const w = cfg.widgets[slot], el = $(WG_EL[slot]);
+      const on = cfg[slot] === 'widget' && w && w.id && !el.classList.contains('hide');
+      const r = el.getBoundingClientRect();
+      const rad = Math.round((parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0) * d);
+      const v = [Math.round(r.left * d), Math.round(r.top * d), Math.round(r.width * d), Math.round(r.height * d), rad];
+      const vis = !!on && !hidden && r.width > 20 && r.height > 20;
+      const key = (w && w.id || 0) + ':' + v.join(',') + ':' + vis;
+      if (!force && wgKeys[slot] === key) return;
+      wgKeys[slot] = key;
+      try { A.widgetShow(slot, (w && w.id) || 0, v[0], v[1], v[2], v[3], v[4], vis); } catch (e) { /* versión sin widgets */ }
+    });
+  }
+  setInterval(syncWidgets, 700);
+  window.addEventListener('resize', () => setTimeout(syncWidgets, 120));
+  // Al abrir o cerrar un panel o un menú, el widget se esconde o vuelve al momento (si no, taparía el panel)
+  new MutationObserver(() => syncWidgets()).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+
+  // =====================================================================
   //  ELEGIR (acciones, apps Pro, todas las apps)
   // =====================================================================
   let apps = null, pickCb = null, pickOpts = {};
@@ -776,8 +886,9 @@
     pickCb = cb;
     $('pickTitle').textContent = opts.title || 'Elegir';
     $('buscar').value = '';
+    $('buscar').placeholder = opts.widgets ? 'Buscar widget…' : 'Buscar app…';
     $('picker').classList.remove('hide');
-    if (!apps) A.allApps();
+    if (!apps && !opts.widgets) A.allApps();
     drawPick();
   }
   $('buscar').addEventListener('input', drawPick);
@@ -797,6 +908,7 @@
   function drawPick() {
     const box = $('pickList'), q = $('buscar').value.trim().toLowerCase();
     box.innerHTML = '';
+    if (pickOpts.widgets) return drawWidgetPick(box, q);
     const section = (title, items) => {
       if (!items.length) return;
       const h = document.createElement('h3'); h.textContent = title; box.appendChild(h);
@@ -814,6 +926,39 @@
     list.forEach((a) => g.appendChild(pickBtn({ t: 'app', pkg: a.pkg, cls: a.cls, label: a.label, icon: a.icon })));
     if (!list.length) g.innerHTML = '<div class="empty">No hay apps con ese nombre</div>';
     box.appendChild(g);
+  }
+
+  /** Lista de widgets, agrupados por app, con su dibujo de muestra. */
+  function drawWidgetPick(box, q) {
+    if (!widgetsList) { box.innerHTML = '<div class="empty">Buscando widgets…</div>'; return; }
+    const list = widgetsList.filter((w) => !q || (w.label + ' ' + w.app).toLowerCase().includes(q));
+    if (!list.length) { box.innerHTML = '<div class="empty">' + (widgetsList.length ? 'No hay widgets con ese nombre' : 'No hay widgets instalados') + '</div>'; return; }
+    const tip = document.createElement('div'); tip.className = 'muted wtip';
+    tip.textContent = 'La primera vez Android pregunta si Pro Inicio puede crear widgets: marca «Permitir siempre» y toca Crear.';
+    box.appendChild(tip);
+    let curApp = null, grid = null;
+    list.forEach((w) => {
+      if (w.app !== curApp) {
+        curApp = w.app;
+        const h = document.createElement('h3');
+        h.innerHTML = (w.icon ? '<img alt="" src="' + esc(w.icon) + '">' : '') + '<span></span>';
+        h.querySelector('span').textContent = w.app;
+        h.className = 'wapp';
+        box.appendChild(h);
+        grid = document.createElement('div'); grid.className = 'wgrid'; box.appendChild(grid);
+      }
+      const b = document.createElement('button');
+      b.className = 'wbtn';
+      b.innerHTML = '<div class="wprev">' + (w.preview ? '<img alt="" src="' + esc(w.preview) + '">' : (w.icon ? '<img class="ico" alt="" src="' + esc(w.icon) + '">' : '')) + '</div><b></b><small></small>';
+      b.querySelector('b').textContent = w.label;
+      b.querySelector('small').textContent = w.w && w.h ? Math.max(1, Math.round((w.w + 30) / 70)) + ' × ' + Math.max(1, Math.round((w.h + 30) / 70)) : '';
+      b.addEventListener('click', () => {
+        $('picker').classList.add('hide');
+        const cb = pickCb; pickCb = null;
+        if (cb) cb(w);
+      });
+      grid.appendChild(b);
+    });
   }
 
   // =====================================================================
@@ -931,6 +1076,7 @@
     const hr = row('Pantalla de inicio', home ? '✔ Pro Inicio es la pantalla de inicio' : 'Que el botón «casa» abra Pro Inicio',
       btn(home ? 'Cambiar' : 'Elegir', () => { toast('Elige «Pro Inicio» como aplicación de inicio'); A.homeSettings(); }));
     if (home) hr.querySelector('small').classList.add('ok');
+    row('App del teléfono', 'La que abre el botón Teléfono: ' + phoneLabel(), btn('Elegir', () => choosePhone(false)));
     row('Abrir al encender el coche', 'Pro Inicio aparece sola al arrancar', sw(A.getPref('boot', true), (v) => A.setPref('boot', v)));
     const lr = row('Ubicación', loc ? '✔ Ubicación recibida' : 'Para el mapa, la velocidad y el tiempo', loc ? null : btn('Permitir', () => A.locationPermission()));
     if (loc) lr.querySelector('small').classList.add('ok');
@@ -994,6 +1140,21 @@
       ok ? w.res(body) : w.rej(new Error(body));
     },
     onApps(list) { apps = list || []; if (!$('picker').classList.contains('hide')) drawPick(); },
+    onWidgets(list) { widgetsList = list || []; if (!$('picker').classList.contains('hide') && pickOpts.widgets) drawPick(); },
+    onWidget(slot, r) {
+      if (r && r.id) {
+        cfg.widgets[slot] = { id: r.id, label: r.label, pkg: r.pkg };
+        cfg[slot] = 'widget';
+        save(); drawLayout(); syncWidgets(true);
+        toast('✔ ' + (r.label || 'Widget') + ' puesto. Mantenlo pulsado para cambiarlo.');
+      } else {
+        const why = { nobind: 'Android no ha dado permiso para crear el widget. Vuelve a probar y toca «Crear».', cancel: 'Has cancelado los ajustes del widget.',
+          missing: 'Ese widget ya no está instalado.', nohost: 'Esta pantalla no deja poner widgets.' };
+        toast(why[r && r.error] || 'No se pudo poner el widget');
+      }
+    },
+    widgetMenu(slot) { widgetMenu(slot); },
+    widgetGone(slot) { delete cfg.widgets[slot]; save(); drawWidgets(); toast('La app del widget se ha desinstalado'); },
     appsChanged() { apps = null; drawGrid(); if (!$('picker').classList.contains('hide')) A.allApps(); },
     onUpdate(u) {
       $('updName').textContent = 'Versión ' + u.name + ' (tienes la ' + A.version() + ')';
@@ -1007,6 +1168,7 @@
       drawGrid(); A.refreshMedia(); loadWeather(false); updNet(); if (map) map.resize();
       if (cardState === 'noperm' || cardState === 'old') { cardState = ''; drawCardMsg(); }
       syncCard(true);
+      syncWidgets(true);
       if (window.PS) PS.resume();
     },
     back() {

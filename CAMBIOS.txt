@@ -1,3 +1,3 @@
-Nuevo «Código Pro» (Personalizar → Móvil y coche): un solo código para vincular el móvil y el coche en todas las apps Pro.
-Pro Inicio sincroniza el tema de colores, los botones de apps y el navegador elegido. La colocación del mapa y las tarjetas sigue siendo distinta en cada pantalla.
-Los datos viajan cifrados: solo tus aparatos pueden leerlos.
+Nueva tarjeta «Widget»: pon en una tarjeta cualquier widget de tus apps (Deezer, Calendario, el tiempo…). Mantén pulsada una tarjeta → Cambiar por: Widget. Mantén pulsado el widget para cambiarlo o quitarlo.
+La tarjeta Música ahora también controla Deezer, YouTube y otras apps: si suenan, ⏮ ⏯ ⏭ van a esa app. Toca la parte de arriba para volver a Pro Radio.
+Arreglado el botón Teléfono: busca solo la app del teléfono (o «Bluetooth» en el coche). Si no la encuentra, te deja elegirla una vez. También en Personalizar → Sistema → App del teléfono.

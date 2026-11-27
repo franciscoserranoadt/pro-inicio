@@ -253,3 +253,26 @@ svg { display: block; fill: currentColor; }
 }
 .toprail .rb { width: clamp(40px, 7vmin, 56px); height: clamp(40px, 7vmin, 56px); max-height: none; aspect-ratio: auto; border-radius: 14px; flex: 0 0 auto; }
 .toprail .rb.on { box-shadow: 0 0 0 2px var(--glow), 0 0 14px var(--glow); }
+
+/* ---------- Tarjeta Widget (el widget de Android va encima, dibujado por Android) ---------- */
+.wg { background: var(--apps); position: relative; cursor: pointer; }
+.wgph { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(6px, 1.2vmin, 10px);
+  text-align: center; padding: 14px; color: var(--muted); }
+.wgph b { color: var(--txt); font-size: clamp(16px, 3.4vmin, 24px); }
+.wgph small { font-size: clamp(12px, 2.4vmin, 17px); }
+.wgph .obtn { margin-top: 4px; }
+.wgicon { width: clamp(44px, 10vmin, 72px); aspect-ratio: 1; border-radius: 22%; background: var(--tile); color: #fff; display: grid; place-items: center; }
+.wgicon svg { width: 56%; height: 56%; }
+.wgload { font-size: clamp(13px, 2.6vmin, 18px); }
+#player.ext .art { background: linear-gradient(140deg, var(--acc), var(--acc2)); }
+.pickscroll h3.wapp { display: flex; align-items: center; gap: 10px; text-transform: none; letter-spacing: 0; color: var(--txt); font-size: 17px; margin-top: 18px; }
+.wapp img { width: 30px; height: 30px; border-radius: 8px; }
+.wgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(clamp(150px, 24vmin, 200px), 1fr)); gap: 10px; }
+.wbtn { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); text-align: left; min-width: 0; }
+.wbtn:active { background: var(--card2); }
+.wprev { height: clamp(90px, 18vmin, 130px); border-radius: 12px; background: rgba(127, 127, 127, .12); display: grid; place-items: center; overflow: hidden; }
+.wprev img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.wprev img.ico { width: 56px; height: 56px; border-radius: 22%; }
+.wbtn b { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wbtn small { color: var(--muted); font-size: 13px; }
+.wtip { padding: 2px 4px 4px; font-size: 15px; line-height: 1.4; }

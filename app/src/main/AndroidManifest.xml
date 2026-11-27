@@ -19,6 +19,14 @@
         <intent>
             <action android:name="androidx.media3.session.MediaSessionService" />
         </intent>
+        <!-- Widgets de las demás apps (tarjeta Widget) y la app del teléfono -->
+        <intent>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
         <package android:name="es.proobd.app" />
         <package android:name="es.progaraje.app" />
     </queries>

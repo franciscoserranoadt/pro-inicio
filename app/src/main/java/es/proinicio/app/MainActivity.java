@@ -3,6 +3,10 @@ package es.proinicio.app;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.appwidget.AppWidgetHost;
+import android.appwidget.AppWidgetHostView;
+import android.appwidget.AppWidgetManager;
+import android.appwidget.AppWidgetProviderInfo;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -14,10 +18,12 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Outline;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -25,13 +31,18 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.util.Base64;
+import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
+import android.view.ViewOutlineProvider;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import androidx.media3.common.MediaItem;
@@ -51,7 +62,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -64,6 +77,21 @@ public class MainActivity extends Activity {
     static final String PKG_GARAJE = "es.progaraje.app";
 
     private WebView web;
+    private FrameLayout root;
+
+    // ---- Widgets de Android en las tarjetas (como cualquier pantalla de inicio) ----
+    static final int HOST_ID = 0x5049;
+    static final int REQ_BIND = 71, REQ_CONF = 72;
+    private AppWidgetManager awm;
+    private AppWidgetHost host;
+    private final Map<String, WidgetFrame> wgViews = new HashMap<>();
+    private final Map<String, String> wgState = new HashMap<>();
+    private String pendSlot = null;
+    private int pendId = -1;
+
+    // ---- Música de otras apps (Deezer, YouTube…): teclas multimedia, sin permisos ----
+    private AudioManager audio;
+    private boolean extMusic = false;
     private boolean pageReady = false;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService pool = Executors.newFixedThreadPool(3);
@@ -132,7 +160,14 @@ public class MainActivity extends Activity {
         });
         web.addJavascriptInterface(new Bridge(), "Android");
         web.addJavascriptInterface(new ProSync.Js(this, web), "ProSync");
-        setContentView(web);
+        root = new FrameLayout(this);
+        root.addView(web, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        setContentView(root);
+        audio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        try {
+            awm = AppWidgetManager.getInstance(this);
+            host = new AppWidgetHost(getApplicationContext(), HOST_ID);
+        } catch (Exception ignored) { }
         web.loadUrl("file:///android_asset/index.html");
         hideSystemBars();
 
@@ -191,7 +226,10 @@ public class MainActivity extends Activity {
     protected void onStart() {
         super.onStart();
         visible = true;
+        try { if (host != null) host.startListening(); } catch (Exception ignored) { }
         connectRadio();
+        handler.removeCallbacks(musicWatch);
+        handler.postDelayed(musicWatch, 1500);
         startLocation();
     }
 
@@ -201,6 +239,8 @@ public class MainActivity extends Activity {
         // es que la pantalla lo abrió a pantalla completa (no admite ventanas libres)
         if (System.currentTimeMillis() - winLaunchAt < 4000) winWentFull = true;
         visible = false;
+        handler.removeCallbacks(musicWatch);
+        try { if (host != null) host.stopListening(); } catch (Exception ignored) { }
         releaseRadio();
         stopLocation();
         super.onStop();
@@ -254,6 +294,21 @@ public class MainActivity extends Activity {
     public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
         super.onRequestPermissionsResult(code, perms, res);
         if (code == 5) startLocation();
+    }
+
+    @Override
+    protected void onActivityResult(int req, int res, Intent data) {
+        super.onActivityResult(req, res, data);
+        if (req != REQ_BIND && req != REQ_CONF) return;
+        if (pendSlot == null || pendId < 0) return;
+        if (res != RESULT_OK) {
+            try { host.deleteAppWidgetId(pendId); } catch (Exception ignored) { }
+            widgetResult(pendSlot, null, req == REQ_BIND ? "nobind" : "cancel");
+            pendSlot = null; pendId = -1;
+            return;
+        }
+        if (req == REQ_BIND) configureWidget(pendSlot, pendId);
+        else finishWidget(pendSlot, pendId);
     }
 
     @SuppressWarnings("deprecation")
@@ -351,6 +406,8 @@ public class MainActivity extends Activity {
             JSONObject o = new JSONObject();
             o.put("perm", true);
             o.put("radio", installed(PKG_RADIO));
+            o.put("ext", extMusic);
+            o.put("extPlaying", extMusic && musicActive() && !radioPlaying());
             MediaController c = radio;
             if (c == null || !c.isConnected() || c.getMediaItemCount() == 0) {
                 o.put("has", false);
@@ -378,7 +435,52 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) { }
     }
 
+    private boolean radioPlaying() {
+        MediaController c = radio;
+        try { return c != null && c.isConnected() && c.getMediaItemCount() > 0 && c.getPlayWhenReady(); } catch (Exception e) { return false; }
+    }
+
+    private boolean musicActive() {
+        try { return audio != null && audio.isMusicActive(); } catch (Exception e) { return false; }
+    }
+
+    /** Cada 3 s mira si suena música de otra app (Deezer, YouTube…). Así los botones ⏮ ⏯ ⏭ van a esa app. */
+    private boolean lastExtPlaying = false;
+    private final Runnable musicWatch = new Runnable() {
+        @Override public void run() {
+            if (!visible) return;
+            boolean rp = radioPlaying(), active = musicActive();
+            if (rp) extMusic = false;
+            else if (active) extMusic = true;
+            boolean ep = extMusic && active && !rp;
+            if (ep != lastExtPlaying) { lastExtPlaying = ep; pushMedia(); }
+            handler.postDelayed(this, 3000);
+        }
+    };
+
+    /** Tecla multimedia (como los botones de unos auriculares): la recibe la app que está sonando o la última que sonó. */
+    private void mediaKey(int code) {
+        try {
+            long t = android.os.SystemClock.uptimeMillis();
+            audio.dispatchMediaKeyEvent(new KeyEvent(t, t, KeyEvent.ACTION_DOWN, code, 0));
+            audio.dispatchMediaKeyEvent(new KeyEvent(t, t, KeyEvent.ACTION_UP, code, 0));
+        } catch (Exception ignored) { }
+        handler.postDelayed(this::pushMedia, 900);
+    }
+
     private void mediaCmd(String cmd) {
+        // Si suena (o sonó la última) otra app, los botones van a esa app
+        if (extMusic && !radioPlaying()) {
+            switch (cmd) {
+                case "toggle": mediaKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE); return;
+                case "play": mediaKey(KeyEvent.KEYCODE_MEDIA_PLAY); return;
+                case "pause": mediaKey(KeyEvent.KEYCODE_MEDIA_PAUSE); return;
+                case "next": mediaKey(KeyEvent.KEYCODE_MEDIA_NEXT); return;
+                case "prev": mediaKey(KeyEvent.KEYCODE_MEDIA_PREVIOUS); return;
+                default: break;
+            }
+        }
+        if ("radio".equals(cmd)) { extMusic = false; if (musicActive()) mediaKey(KeyEvent.KEYCODE_MEDIA_PAUSE); handler.postDelayed(() -> mediaCmd("play"), 600); return; }
         MediaController c = radio;
         if (c == null || !c.isConnected()) {
             if ("play".equals(cmd) || "toggle".equals(cmd)) startRadio();
@@ -570,6 +672,258 @@ public class MainActivity extends Activity {
         }
     }
 
+    // ================= widgets de Android =================
+
+    /** Marco del widget: deja usar el widget con normalidad y, al mantenerlo pulsado, abre el menú de la tarjeta. */
+    private class WidgetFrame extends FrameLayout {
+        String slot;
+        int id;
+        AppWidgetHostView hv;
+        int radius = 0, lw = -1, lh = -1;
+        private float dx, dy;
+        private boolean fired = false;
+        private final int slop;
+        private final Runnable lp = () -> {
+            fired = true;
+            performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+            js("PI.widgetMenu && PI.widgetMenu(" + JSONObject.quote(slot) + ")");
+        };
+
+        WidgetFrame(Context c, String slot) {
+            super(c);
+            this.slot = slot;
+            slop = ViewConfiguration.get(c).getScaledTouchSlop() * 2;
+            setClipToOutline(true);
+            setOutlineProvider(new ViewOutlineProvider() {
+                @Override public void getOutline(View v, Outline o) { o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), radius); }
+            });
+        }
+
+        @Override
+        public boolean onInterceptTouchEvent(MotionEvent e) {
+            switch (e.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    fired = false; dx = e.getX(); dy = e.getY();
+                    removeCallbacks(lp); postDelayed(lp, 650);
+                    break;
+                case MotionEvent.ACTION_MOVE:
+                    if (Math.abs(e.getX() - dx) > slop || Math.abs(e.getY() - dy) > slop) removeCallbacks(lp);
+                    break;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    removeCallbacks(lp);
+                    break;
+                default: break;
+            }
+            return fired;
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent e) {
+            int a = e.getActionMasked();
+            if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) { removeCallbacks(lp); fired = false; }
+            return true;
+        }
+    }
+
+    private void widgetResult(String slot, JSONObject ok, String err) {
+        try {
+            JSONObject o = ok != null ? ok : new JSONObject().put("error", err);
+            js("PI.onWidget && PI.onWidget(" + JSONObject.quote(slot) + "," + o + ")");
+        } catch (Exception ignored) { }
+    }
+
+    private AppWidgetProviderInfo findProvider(ComponentName cn) {
+        try {
+            for (AppWidgetProviderInfo p : awm.getInstalledProviders()) if (p.provider.equals(cn)) return p;
+        } catch (Exception ignored) { }
+        return null;
+    }
+
+    /** Paso 1: pedir el widget. Android pregunta una sola vez «¿Permitir a Pro Inicio crear widgets?». */
+    private void addWidget(String slot, String prov) {
+        if (awm == null || host == null) { widgetResult(slot, null, "nohost"); return; }
+        ComponentName cn = ComponentName.unflattenFromString(prov);
+        if (cn == null || findProvider(cn) == null) { widgetResult(slot, null, "missing"); return; }
+        int id;
+        try { id = host.allocateAppWidgetId(); } catch (Exception e) { widgetResult(slot, null, "nohost"); return; }
+        pendSlot = slot; pendId = id;
+        boolean ok = false;
+        try { ok = awm.bindAppWidgetIdIfAllowed(id, cn); } catch (Exception ignored) { }
+        if (ok) { configureWidget(slot, id); return; }
+        try {
+            Intent i = new Intent(AppWidgetManager.ACTION_APPWIDGET_BIND);
+            i.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id);
+            i.putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, cn);
+            startActivityForResult(i, REQ_BIND);
+        } catch (Exception e) {
+            try { host.deleteAppWidgetId(id); } catch (Exception ignored) { }
+            pendSlot = null; pendId = -1;
+            widgetResult(slot, null, "nobind");
+        }
+    }
+
+    /** Paso 2: algunos widgets tienen su propia pantalla de ajustes (elegir calendario, ciudad…). */
+    private void configureWidget(String slot, int id) {
+        AppWidgetProviderInfo info = null;
+        try { info = awm.getAppWidgetInfo(id); } catch (Exception ignored) { }
+        if (info == null) { widgetResult(slot, null, "error"); pendSlot = null; pendId = -1; return; }
+        if (info.configure == null) { finishWidget(slot, id); return; }
+        pendSlot = slot; pendId = id;
+        try {
+            host.startAppWidgetConfigureActivityForResult(this, id, 0, REQ_CONF, null);
+        } catch (Exception e) {
+            try {
+                Intent i = new Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE);
+                i.setComponent(info.configure);
+                i.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id);
+                startActivityForResult(i, REQ_CONF);
+            } catch (Exception e2) {
+                // No deja abrir sus ajustes: se pone tal cual
+                finishWidget(slot, id);
+            }
+        }
+    }
+
+    /** Paso 3: guardado. Si en esa tarjeta había otro widget, se borra. */
+    private void finishWidget(String slot, int id) {
+        pendSlot = null; pendId = -1;
+        int old = prefs.getInt("wg_" + slot, -1);
+        if (old > 0 && old != id) {
+            try { host.deleteAppWidgetId(old); } catch (Exception ignored) { }
+            removeWidgetView(slot);
+        }
+        prefs.edit().putInt("wg_" + slot, id).apply();
+        try {
+            AppWidgetProviderInfo info = awm.getAppWidgetInfo(id);
+            JSONObject o = new JSONObject();
+            o.put("id", id);
+            o.put("label", info != null ? String.valueOf(info.loadLabel(getPackageManager())) : "Widget");
+            o.put("pkg", info != null ? info.provider.getPackageName() : "");
+            widgetResult(slot, o, null);
+        } catch (Exception e) {
+            widgetResult(slot, null, "error");
+        }
+    }
+
+    private void removeWidgetView(String slot) {
+        WidgetFrame f = wgViews.remove(slot);
+        wgState.remove(slot);
+        if (f != null) try { root.removeView(f); } catch (Exception ignored) { }
+    }
+
+    /** Coloca (o esconde) el widget encima del hueco de su tarjeta. Medidas en píxeles reales de la página. */
+    private void showWidget(String slot, int id, int x, int y, int w, int h, int r, boolean vis) {
+        String key = id + ":" + x + "," + y + "," + w + "," + h + "," + r + "," + vis;
+        if (key.equals(wgState.get(slot))) return;
+        wgState.put(slot, key);
+        WidgetFrame f = wgViews.get(slot);
+        if (id <= 0 || prefs.getInt("wg_" + slot, -1) != id) {
+            if (f != null) f.setVisibility(View.GONE);
+            return;
+        }
+        AppWidgetProviderInfo info = null;
+        try { info = awm.getAppWidgetInfo(id); } catch (Exception ignored) { }
+        if (info == null) {
+            // La app del widget se ha desinstalado
+            removeWidgetView(slot);
+            prefs.edit().remove("wg_" + slot).apply();
+            js("PI.widgetGone && PI.widgetGone(" + JSONObject.quote(slot) + ")");
+            return;
+        }
+        if (f == null || f.id != id) {
+            if (f != null) removeWidgetView(slot);
+            wgState.put(slot, key);
+            f = new WidgetFrame(this, slot);
+            f.id = id;
+            try {
+                f.hv = host.createView(getApplicationContext(), id, info);
+                f.hv.setPadding(0, 0, 0, 0);
+                f.addView(f.hv, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+            } catch (Exception e) {
+                return;
+            }
+            root.addView(f, new FrameLayout.LayoutParams(Math.max(1, w), Math.max(1, h)));
+            wgViews.put(slot, f);
+        }
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) f.getLayoutParams();
+        if (lp.width != w || lp.height != h) { lp.width = Math.max(1, w); lp.height = Math.max(1, h); f.setLayoutParams(lp); }
+        f.setX(x); f.setY(y);
+        if (f.radius != r) { f.radius = r; f.invalidateOutline(); }
+        if (f.lw != w || f.lh != h) {
+            f.lw = w; f.lh = h;
+            float d = getResources().getDisplayMetrics().density;
+            int wd = Math.round(w / d), hd = Math.round(h / d);
+            try { f.hv.updateAppWidgetSize(null, wd, hd, wd, hd); } catch (Exception ignored) { }
+        }
+        f.setVisibility(vis ? View.VISIBLE : View.GONE);
+    }
+
+    private static Bitmap drawableToBitmapFit(Drawable d, int max) {
+        int w = d.getIntrinsicWidth(), h = d.getIntrinsicHeight();
+        if (w <= 0 || h <= 0) { w = max; h = max; }
+        float k = Math.min(1f, (float) max / Math.max(w, h));
+        int bw = Math.max(1, Math.round(w * k)), bh = Math.max(1, Math.round(h * k));
+        Bitmap b = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(b);
+        d.setBounds(0, 0, bw, bh);
+        d.draw(c);
+        return b;
+    }
+
+    // ================= teléfono =================
+
+    private static final String PHONE_RX = "(?i).*(tel[eé]fono|phone|marcador|llamada|dialer|bt ?phone|bluetooth|manos libres).*";
+
+    /** Abre la app del teléfono. Primero la elegida; si no, la que se llame «Teléfono», «Bluetooth»…; si no, el marcador. */
+    private String openPhone() {
+        String pkg = prefsStr("phonePkg"), cls = prefsStr("phoneCls");
+        if (!pkg.isEmpty()) {
+            if (openComponent(pkg, cls)) return pkg;
+        }
+        PackageManager pm = getPackageManager();
+        try {
+            Intent main = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+            ResolveInfo best = null;
+            int bestScore = 0;
+            for (ResolveInfo r : pm.queryIntentActivities(main, 0)) {
+                String p = r.activityInfo.packageName;
+                if (p.equals(getPackageName()) || p.startsWith("com.android.settings")) continue;
+                String label = String.valueOf(r.loadLabel(pm));
+                if (!label.matches(PHONE_RX) && !p.matches("(?i).*(dialer|\\.bt\\b|bluetooth|btphone|\\.phone).*")) continue;
+                int score = label.matches("(?i).*(tel[eé]fono|phone|marcador|dialer).*") ? 3 : 1;
+                if (p.matches("(?i).*(dialer|contacts|phone).*")) score++;
+                if (score > bestScore) { bestScore = score; best = r; }
+            }
+            if (best != null && openComponent(best.activityInfo.packageName, best.activityInfo.name)) return best.activityInfo.packageName;
+        } catch (Exception ignored) { }
+        try {
+            Intent i = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:"));
+            if (i.resolveActivity(pm) != null) {
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(i);
+                return "dial";
+            }
+        } catch (Exception ignored) { }
+        return "";
+    }
+
+    private String prefsStr(String k) { String v = prefs.getString(k, ""); return v == null ? "" : v; }
+
+    private boolean openComponent(String pkg, String cls) {
+        if (cls == null || cls.isEmpty()) return openApp(pkg);
+        try {
+            Intent i = new Intent(Intent.ACTION_MAIN);
+            i.addCategory(Intent.CATEGORY_LAUNCHER);
+            i.setComponent(new ComponentName(pkg, cls));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+            startActivity(i);
+            return true;
+        } catch (Exception e) {
+            return openApp(pkg);
+        }
+    }
+
     // ================= actualizaciones =================
 
     private void checkUpdate(boolean manual) {
@@ -751,19 +1105,84 @@ public class MainActivity extends Activity {
             }
         }
 
-        /** Teléfono: abre el marcador (en la Junsun, su app de teléfono Bluetooth). */
+        /** Teléfono: abre la app del teléfono (en la Junsun, su app de teléfono Bluetooth). Devuelve "" si no encuentra ninguna. */
         @JavascriptInterface
-        public void phone() {
-            runOnUiThread(() -> {
+        public String phone() { return openPhone(); }
+
+        /** Guarda la app que abre el botón Teléfono (pkg vacío = buscarla sola). */
+        @JavascriptInterface
+        public void setPhoneApp(String pkg, String cls) {
+            prefs.edit().putString("phonePkg", pkg == null ? "" : pkg).putString("phoneCls", cls == null ? "" : cls).apply();
+        }
+
+        @JavascriptInterface
+        public String phoneApp() { return prefsStr("phonePkg"); }
+
+        /** Lista de widgets instalados. La respuesta llega a PI.onWidgets(lista). */
+        @JavascriptInterface
+        public void widgetList() {
+            pool.execute(() -> {
+                JSONArray arr = new JSONArray();
                 try {
-                    Intent i = new Intent(Intent.ACTION_DIAL);
-                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(i);
-                } catch (Exception e) {
-                    toast("No se encuentra la app de teléfono");
-                }
+                    PackageManager pm = getPackageManager();
+                    int dens = getResources().getDisplayMetrics().densityDpi;
+                    float d = getResources().getDisplayMetrics().density;
+                    List<JSONObject> out = new ArrayList<>();
+                    for (AppWidgetProviderInfo p : awm.getInstalledProviders()) {
+                        String pkg = p.provider.getPackageName();
+                        if (pkg.equals(getPackageName())) continue;
+                        JSONObject o = new JSONObject();
+                        o.put("prov", p.provider.flattenToString());
+                        o.put("pkg", pkg);
+                        o.put("label", String.valueOf(p.loadLabel(pm)));
+                        String app = pkg;
+                        try { app = String.valueOf(pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0))); } catch (Exception ignored) { }
+                        o.put("app", app);
+                        o.put("w", Math.round(p.minWidth / d));
+                        o.put("h", Math.round(p.minHeight / d));
+                        String img = "";
+                        try {
+                            Drawable pv = p.loadPreviewImage(MainActivity.this, dens);
+                            if (pv != null) img = bitmapB64(drawableToBitmapFit(pv, 220), 220, true);
+                        } catch (Throwable ignored) { }
+                        o.put("preview", img);
+                        String icon = "";
+                        try { icon = bitmapB64(drawableToBitmap(pm.getApplicationIcon(pkg), 72), 72, true); } catch (Exception ignored) { }
+                        o.put("icon", icon);
+                        out.add(o);
+                    }
+                    Collections.sort(out, (a, b) -> {
+                        int c = a.optString("app").compareToIgnoreCase(b.optString("app"));
+                        return c != 0 ? c : a.optString("label").compareToIgnoreCase(b.optString("label"));
+                    });
+                    for (JSONObject o : out) arr.put(o);
+                } catch (Exception ignored) { }
+                js("PI.onWidgets(" + arr + ")");
             });
         }
+
+        @JavascriptInterface
+        public void widgetAdd(String slot, String prov) { handler.post(() -> addWidget(slot, prov)); }
+
+        @JavascriptInterface
+        public void widgetRemove(String slot) {
+            handler.post(() -> {
+                int id = prefs.getInt("wg_" + slot, -1);
+                if (id > 0) try { host.deleteAppWidgetId(id); } catch (Exception ignored) { }
+                prefs.edit().remove("wg_" + slot).apply();
+                removeWidgetView(slot);
+            });
+        }
+
+        /** Dónde va el widget de una tarjeta (píxeles de la página) y si se ve. */
+        @JavascriptInterface
+        public void widgetShow(String slot, int id, int x, int y, int w, int h, int r, boolean vis) {
+            handler.post(() -> showWidget(slot, id, x, y, w, h, r, vis));
+        }
+
+        /** Pone Pro Radio (y pausa la música de otra app). */
+        @JavascriptInterface
+        public void playRadio() { handler.post(() -> mediaCmd("radio")); }
 
         /** Icono de una app (para los favoritos). */
         @JavascriptInterface
