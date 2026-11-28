@@ -81,7 +81,7 @@ public class MainActivity extends Activity {
 
     // ---- Widgets de Android en las tarjetas (como cualquier pantalla de inicio) ----
     static final int HOST_ID = 0x5049;
-    static final int REQ_BIND = 71, REQ_CONF = 72;
+    static final int REQ_BIND = 71, REQ_CONF = 72, REQ_BG = 73;
     private AppWidgetManager awm;
     private AppWidgetHost host;
     private final Map<String, WidgetFrame> wgViews = new HashMap<>();
@@ -348,6 +348,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
+        if (req == REQ_BG) {
+            if (res == RESULT_OK && data != null && data.getData() != null) saveBackground(data.getData());
+            return;
+        }
         if (req != REQ_BIND && req != REQ_CONF) return;
         if (pendSlot == null || pendId < 0) return;
         if (res != RESULT_OK) {
@@ -358,6 +362,49 @@ public class MainActivity extends Activity {
         }
         if (req == REQ_BIND) configureWidget(pendSlot, pendId);
         else finishWidget(pendSlot, pendId);
+    }
+
+    // ================= fondo de pantalla (foto propia) =================
+
+    private java.io.File bgFile() { return new java.io.File(getFilesDir(), "fondo.jpg"); }
+
+    /** Copia la foto elegida, reducida (máx. 1920 px) y bien girada, a la carpeta privada de la app. */
+    private void saveBackground(Uri uri) {
+        pool.execute(() -> {
+            try {
+                android.graphics.BitmapFactory.Options o = new android.graphics.BitmapFactory.Options();
+                o.inJustDecodeBounds = true;
+                try (java.io.InputStream in = getContentResolver().openInputStream(uri)) { android.graphics.BitmapFactory.decodeStream(in, null, o); }
+                int max = Math.max(o.outWidth, o.outHeight), sample = 1;
+                while (max / (sample * 2) >= 1920) sample *= 2;
+                android.graphics.BitmapFactory.Options o2 = new android.graphics.BitmapFactory.Options();
+                o2.inSampleSize = sample;
+                Bitmap b;
+                try (java.io.InputStream in = getContentResolver().openInputStream(uri)) { b = android.graphics.BitmapFactory.decodeStream(in, null, o2); }
+                if (b == null) throw new Exception("foto");
+                int rot = 0;
+                try (java.io.InputStream in = getContentResolver().openInputStream(uri)) {
+                    android.media.ExifInterface ex = new android.media.ExifInterface(in);
+                    int or = ex.getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION, android.media.ExifInterface.ORIENTATION_NORMAL);
+                    rot = or == android.media.ExifInterface.ORIENTATION_ROTATE_90 ? 90 : or == android.media.ExifInterface.ORIENTATION_ROTATE_180 ? 180
+                            : or == android.media.ExifInterface.ORIENTATION_ROTATE_270 ? 270 : 0;
+                } catch (Exception ignored) { }
+                float k = Math.min(1f, 1920f / Math.max(b.getWidth(), b.getHeight()));
+                android.graphics.Matrix m = new android.graphics.Matrix();
+                m.postScale(k, k);
+                if (rot != 0) m.postRotate(rot);
+                Bitmap out = Bitmap.createBitmap(b, 0, 0, b.getWidth(), b.getHeight(), m, true);
+                try (java.io.FileOutputStream f = new java.io.FileOutputStream(bgFile())) { out.compress(Bitmap.CompressFormat.JPEG, 88, f); }
+                js("PI.onBg && PI.onBg(" + JSONObject.quote(bgUrl()) + ", false)");
+            } catch (Exception e) {
+                js("PI.onBg && PI.onBg('', true)");
+            }
+        });
+    }
+
+    private String bgUrl() {
+        java.io.File f = bgFile();
+        return f.exists() ? "file://" + f.getAbsolutePath() + "?v=" + f.lastModified() : "";
     }
 
     @SuppressWarnings("deprecation")
@@ -1421,6 +1468,24 @@ public class MainActivity extends Activity {
                 return "{}";
             }
         }
+
+        /** Elegir una foto de la galería para el fondo. La respuesta llega a PI.onBg(url, error). */
+        @JavascriptInterface
+        public void pickBackground() {
+            runOnUiThread(() -> {
+                try {
+                    Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+                    i.setType("image/*");
+                    i.addCategory(Intent.CATEGORY_OPENABLE);
+                    startActivityForResult(Intent.createChooser(i, "Elige una foto para el fondo"), REQ_BG);
+                } catch (Exception e) {
+                    toast("No hay ninguna app de fotos para elegir");
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public String bgPath() { return bgUrl(); }
 
         @JavascriptInterface
         public void openUrl(String url) {

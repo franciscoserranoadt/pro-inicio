@@ -85,10 +85,28 @@
       '--nav': 'linear-gradient(160deg, ' + nav[0] + ', ' + nav[1] + ')',
       '--tile': tile || (light ? '#8a96b4' : '#3a4258'),
       '--overlay': light ? 'rgba(255,255,255,.93)' : hexA(card, 0.92),
-      '--speed': light ? '#0f9d58' : '#4ade80', '--live': light ? '#dc2626' : '#ff6b6b'
+      '--speed': light ? '#0f9d58' : '#4ade80', '--live': light ? '#dc2626' : '#ff6b6b',
+      '--glass': light ? 'rgba(255,255,255,.62)' : hexA(card, 0.6),
+      '--playerGlass': 'linear-gradient(160deg, ' + hexA(p[0], light ? 0.55 : 0.6) + ', ' + hexA(p[2], light ? 0.55 : 0.6) + ')'
     };
   }
+  // ---------- Fondos de pantalla (dibujos propios en assets/fondos o una foto del aparato) ----------
+  const FONDOS = {
+    none: 'Sin fondo', photo: 'Tu foto', carretera: 'Carretera de noche', ciudad: 'Ciudad de noche', montanas: 'Amanecer',
+    aurora: 'Aurora', ondas: 'Ondas', rojo: 'Rojo y negro', carbono: 'Fibra de carbono', todocamino: 'Todocamino blanco'
+  };
+  let photoUrl = '';
+  try { photoUrl = A.bgPath ? A.bgPath() : ''; } catch (e) { photoUrl = ''; }
+  function applyBg() {
+    const k = cfg.bg || 'none';
+    const url = k === 'photo' ? photoUrl : (k !== 'none' && FONDOS[k] ? 'fondos/' + k + '.svg' : '');
+    $('bg').style.backgroundImage = url ? 'url("' + url + '")' : '';
+    document.body.classList.toggle('hasBg', !!url);
+    document.body.classList.toggle('glass', !!url && cfg.glass !== false);
+    document.documentElement.style.setProperty('--bgDim', String(cfg.bgDim == null ? 0.35 : cfg.bgDim));
+  }
   function applyTheme() {
+    applyBg();
     const v = themeVars(cfg.theme), r = document.documentElement.style;
     Object.keys(v).forEach((k) => r.setProperty(k, v[k]));
   }
@@ -137,7 +155,7 @@
     nav: { t: 'pro', id: 'maps' },
     map: true, mapMode: 'nav', mapStyle: 'auto', b3d: true, street: true, speed: true, mapBtns: true,
     side: 'right', top: 'music', bottom: 'apps',
-    rail: true, railPos: 'top',
+    rail: true, railPos: 'top', bg: 'none', bgDim: 0.35, glass: true,
     railItems: [{ t: 'act', id: 'home' }, { t: 'act', id: 'nav' }, { t: 'pro', id: 'radio' }, { t: 'act', id: 'phone' },
       { t: 'act', id: 'apps' }, { t: 'act', id: 'settings' }, { t: 'pro', id: 'obd' }],
     grid: [{ t: 'pro', id: 'maps' }, { t: 'pro', id: 'radio' }, { t: 'pro', id: 'obd' }, { t: 'pro', id: 'garaje' },
@@ -1392,6 +1410,30 @@
     });
     o.appendChild(th);
 
+    // --- Fondo
+    h3('Fondo de pantalla');
+    const fd = document.createElement('div'); fd.className = 'fondos';
+    Object.keys(FONDOS).forEach((k) => {
+      const b = document.createElement('button');
+      b.className = 'fd' + ((cfg.bg || 'none') === k ? ' on' : '');
+      const prev = k === 'none' ? '<i class="none">∅</i>' :
+        k === 'photo' ? (photoUrl ? '<i style="background-image:url(&quot;' + esc(photoUrl) + '&quot;)"></i>' : '<i class="photo">🖼️</i>') :
+        '<i style="background-image:url(fondos/' + k + '.svg)"></i>';
+      b.innerHTML = prev + '<span></span>';
+      b.querySelector('span').textContent = FONDOS[k];
+      b.addEventListener('click', () => {
+        if (k === 'photo' && !photoUrl) { pickPhoto(); return; }
+        set('bg', k);
+      });
+      fd.appendChild(b);
+    });
+    o.appendChild(fd);
+    row('Tu foto', 'Una foto de la galería (por ejemplo, de tu coche). Se guarda solo en este aparato.', btn(photoUrl ? 'Cambiar foto' : 'Elegir foto', pickPhoto));
+    if ((cfg.bg || 'none') !== 'none') {
+      row('Oscurecer el fondo', 'Para leer mejor encima', seg({ '0': 'Nada', '0.2': 'Poco', '0.35': 'Medio', '0.55': 'Mucho' }, String(cfg.bgDim == null ? 0.35 : cfg.bgDim), (v) => set('bgDim', parseFloat(v))));
+      row('Tarjetas transparentes', 'Se ve el fondo a través de las tarjetas', sw(cfg.glass !== false, (v) => set('glass', v)));
+    }
+
     // --- Mapa
     h3('Mapa');
     row('Mostrar el mapa', 'Si lo quitas, las tarjetas ocupan su sitio', sw(cfg.map, (v) => set('map', v)));
@@ -1480,11 +1522,24 @@
     A.doUpdate();
   });
 
+  function pickPhoto() {
+    if (!A.pickBackground) { toast('Actualiza Pro Inicio para usar tus fotos'); return; }
+    toast('Elige una foto (mejor en horizontal)');
+    A.pickBackground();
+  }
+
   // =====================================================================
   //  LO QUE ANDROID LLAMA
   // =====================================================================
   window.PI = {
     toast,
+    onBg(url, err) {
+      if (err) { toast('No se pudo usar esa foto'); return; }
+      photoUrl = url;
+      cfg.bg = 'photo'; save(); applyBg();
+      if (!$('ajustes').classList.contains('hide')) renderOpts();
+      toast('Fondo puesto. Puedes oscurecerlo en Personalizar → Fondo.');
+    },
     onMedia(m) { media = m || { has: false }; renderMedia(); },
     onCard(st) {
       if (st === 'shown') { cardShownAt = Date.now(); cardRetries = 0; clearTimeout(cardWatch); return; }

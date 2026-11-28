@@ -37,6 +37,10 @@ Francisco quiere manejar el navegador (buscar destino, gasolineras…) desde la 
 - **Música de otras apps:** cada 3 s mira si suena algo que no es Pro Radio (`AudioManager.isMusicActive`). Si sí, la tarjeta Música pone «Música de otra app» y ⏮ ⏯ ⏭ mandan teclas multimedia (`dispatchMediaKeyEvent`) a esa app (Deezer, YouTube…). Tocar la parte de arriba vuelve a Pro Radio (`playRadio`). No puede mostrar el título de otras apps (haría falta el permiso prohibido).
 - **Teléfono:** antes pedía un marcador genérico (`ACTION_DIAL`) y en la Junsun no pasaba nada. Ahora prueba: 1) la app elegida (`phonePkg`); 2) la app cuyo nombre sea «Teléfono», «Bluetooth», «Phone»… (sin contar Android Auto). Si no hay ninguna, pide elegirla una vez. Se cambia en Personalizar → Sistema → «App del teléfono» o manteniendo pulsado el botón. **1.0.17:** se quitó el marcador genérico (`ACTION_DIAL`) como último recurso, porque en la Junsun abría los ajustes de Android Auto. En la Junsun las llamadas van por el Bluetooth del móvil, con la app de teléfono Bluetooth de la propia pantalla.
 
+### Fondos de pantalla (28-nov, v1.0.19)
+Personalizar → **Fondo de pantalla**. Dibujos propios en `assets/fondos/*.svg` (Carretera de noche, Ciudad de noche, Amanecer, Aurora, Ondas, Rojo y negro, Fibra de carbono, Todocamino blanco) y **«Tu foto»**: `pickBackground` abre la galería (`ACTION_GET_CONTENT`), la foto se reduce a 1920 px, se gira según EXIF y se guarda en la carpeta privada (`files/fondo.jpg`); la página la carga con `bgPath`. Opciones: **Oscurecer el fondo** (Nada / Poco / Medio / Mucho → `cfg.bgDim`) y **Tarjetas transparentes** (`cfg.glass`: tarjetas y barra con el color del tema semitransparente y desenfoque). El fondo y la foto **no se sincronizan** con el Código Pro (cada pantalla el suyo).
+**Decisión 28-nov:** Francisco pidió un fondo con el logo de Nissan o un Qashqai J11 blanco. No se dibujan logos ni modelos reales de marcas; en su lugar, «Tu foto» para poner una foto de su propio Qashqai, más el tema de colores «Nissan» (rojo y negro) y un todocamino blanco genérico.
+
 ### Código Pro: móvil ⇄ coche (27-nov)
 Personalizar → **Móvil y coche** → Código Pro. Un solo código para todas las apps Pro (ver `codigo-pro/LEEME - Código Pro.md` en el proyecto). Pro Inicio sincroniza el **tema, los botones de apps (barra y cuadro) y el navegador elegido** (canal `inicio`, gana el último cambio). La colocación del mapa y las tarjetas queda distinta en cada pantalla (decisión de Francisco). Archivos: `ProSync.java`, `SyncReceiver.java`, `assets/prosync.js` (iguales en las 5 apps).
 
@@ -85,6 +89,7 @@ El botón «atrás» no sale de la app (es la pantalla de inicio): solo cierra p
 Java, con una sola librería: `androidx.media3:media3-session` (para hablar con Pro Radio).
 
 ## 5. Historial
+- **1.0.19** Fondos de pantalla (8 dibujos propios + tu foto), oscurecer el fondo y tarjetas transparentes.
 - **1.0.18** Mensajes rápidos por WhatsApp (botón «Mensajes», contactos y textos sincronizados con el Código Pro, `{ubicacion}`) y rutinas al arrancar (BootReceiver con `pi_boot`, o pantalla encendida tras 10 min apagada; aviso de 5 s; Pro Radio/memoria, otra música, app o destino por `geo:` a Pro Maps).
 - **1.0.17** Botón Teléfono: ya no abre los ajustes de Android Auto (sin marcador genérico; Android Auto excluido de la búsqueda). Si no encuentra la app de llamadas Bluetooth, pregunta cuál es.
 - **1.0.15** Tarjeta Widget, botones universales de música (Deezer, YouTube…) y botón Teléfono arreglado. Publicada el 27-nov; falta probarla en la Junsun.
